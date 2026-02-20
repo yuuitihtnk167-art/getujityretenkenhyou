@@ -1,11 +1,11 @@
-const CACHE_NAME = "monthly-tire-check-v1";
+const CACHE_NAME = "monthly-tire-check-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./sw.js",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
+  "./icons/tire-192.png",
+  "./icons/tire-512.png",
   "./icons/icon-192.svg",
   "./icons/icon-512.svg"
 ];

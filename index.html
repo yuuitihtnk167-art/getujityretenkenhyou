@@ -10,8 +10,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="タイヤ点検">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icons/icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" href="icons/tire-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/tire-192.png">
   <style>
     :root {
       --bg: #f1f5fa;
@@ -259,8 +259,15 @@
       justify-content: center;
       pointer-events: none;
     }
-    .fixed-settings .btn {
+    .fixed-settings-row {
       width: min(520px, 92vw);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      pointer-events: auto;
+    }
+    .fixed-settings .btn {
+      width: 100%;
       pointer-events: auto;
       box-shadow: var(--shadow);
     }
@@ -336,6 +343,28 @@
     .modal-body { padding: 12px; display: grid; gap: 10px; }
     .step { color: var(--muted); font-size: .88rem; font-weight: 700; }
     .modal h3 { margin: 0; font-size: 1rem; }
+    #inputDialog .modal-head {
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 86%, black), color-mix(in srgb, var(--accent) 62%, black));
+    }
+    #inputDialog .modal-body {
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 70%, #0b1c2f), color-mix(in srgb, var(--accent) 55%, #0b1c2f));
+    }
+    #inputDialog #dialogTarget {
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+    #inputDialog #stepTitle {
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+    #inputDialog .preview {
+      color: #fff;
+      font-size: 1rem;
+      border-color: color-mix(in srgb, #fff 30%, transparent);
+      background: color-mix(in srgb, var(--surface2) 18%, #0f2237);
+    }
     .sel {
       min-height: var(--tap);
       border: 1px solid var(--line);
@@ -469,7 +498,10 @@
   </div>
 
   <div class="fixed-settings">
-    <button id="openSettingsBtn" class="btn" type="button">設定</button>
+    <div class="fixed-settings-row">
+      <button id="quickResetBtn" class="btn danger" type="button">リセット</button>
+      <button id="openSettingsBtn" class="btn" type="button">設定</button>
+    </div>
   </div>
 
   <dialog id="inputDialog" aria-label="タイヤ入力">
@@ -576,6 +608,7 @@
       const NORMAL_FIELDS = [
         { key: "maker", label: "メーカー", options: ["ミシュラン", "サイルン", "チャオヤン", "トーヨー", "ジンユー"] },
         { key: "type", label: "種類", options: ["ノーマル", "スタッドレス", "再生", "リグ"] },
+        { key: "groove", label: "溝", options: ["○", "△", "✕"] },
         { key: "wear", label: "偏摩耗", options: ["○", "△", "✕"] },
         { key: "damage", label: "キズ", options: ["○", "✕"] },
         { key: "pressure", label: "空気圧", options: ["○", "✕"] }
@@ -604,6 +637,7 @@
         truckToExportBtn: document.getElementById("truckToExportBtn"),
         exportCsvBtn: document.getElementById("exportCsvBtn"),
         exportBackBtn: document.getElementById("exportBackBtn"),
+        quickResetBtn: document.getElementById("quickResetBtn"),
         openSettingsBtn: document.getElementById("openSettingsBtn"),
         exportSummary: document.getElementById("exportSummary"),
         resetBtn: document.getElementById("resetBtn"),
@@ -639,7 +673,7 @@
       const displayMapFor = (type) => normalizeTruckType(type) === TRUCK_TYPES.TEN10 ? DISPLAY_MAP_10 : DISPLAY_MAP_12;
       const circle = (id, type = TRUCK_TYPES.LOW12) => displayMapFor(type)[id - 1] || String(id);
 
-      const newTire = () => ({ maker: "", type: "", wear: "", damage: "", pressure: "" });
+      const newTire = () => ({ maker: "", type: "", groove: "", wear: "", damage: "", pressure: "" });
       const newSpare = () => ({ maker: "", type: "", condition: "" });
       const defaultCurrent = () => ({
         truckType: TRUCK_TYPES.LOW12,
@@ -822,10 +856,8 @@
       }
 
       function renderExportSummary() {
-        const vehicle = current.vehicleNumber || "未選択";
-        const completion = `${percent()}%`;
-        const typeLabel = current.truckType === TRUCK_TYPES.TEN10 ? "大型10輪" : "大型低床(12輪)";
-        el.exportSummary.textContent = `点検日: ${current.inspectionDate} / 車両番号: ${vehicle} / 車種: ${typeLabel} / 入力完了率: ${completion}`;
+        el.exportSummary.textContent = "";
+        el.exportSummary.style.display = "none";
       }
 
       function renderButtons() {
@@ -963,18 +995,21 @@
       function renderStep() {
         const obj = targetObj();
         const field = dialog.fields[dialog.step];
+        const promptText = "選択してください";
         el.stepIndicator.textContent = `項目 ${dialog.step + 1} / ${dialog.fields.length}（選択で自動遷移）`;
         el.stepTitle.textContent = field.label;
-        el.stepSelect.innerHTML = ['<option value="">選択してください</option>']
+        el.stepSelect.innerHTML = [`<option value="">${promptText}</option>`]
           .concat(field.options.map((v) => `<option value="${v}">${v}</option>`))
           .join("");
-        el.stepSelect.value = obj[field.key] || "";
+        // Always reset to placeholder so selecting the same value can still trigger `change`.
+        el.stepSelect.value = "";
         el.stepPreview.textContent = dialog.fields.map((f) => `${f.label}: ${text(obj[f.key])}`).join("\n");
         el.prevStepBtn.disabled = dialog.step === 0;
         requestAnimationFrame(() => el.stepSelect.focus());
       }
 
       function applyStep(value) {
+        if (!value) return;
         const obj = targetObj();
         const field = dialog.fields[dialog.step];
         obj[field.key] = value;
@@ -1017,12 +1052,12 @@
           const t = d.tires[id];
           rows.push([
             kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, "通常", circle(id, d.truckType),
-            t.maker, t.type, t.wear, t.damage, t.pressure, "", entry.completion
+            t.maker, t.type, t.groove, t.wear, t.damage, t.pressure, "", entry.completion
           ]);
         });
         rows.push([
           kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, "スペア", "スペア",
-          d.spare.maker, d.spare.type, "", "", "", d.spare.condition, entry.completion
+          d.spare.maker, d.spare.type, "", "", "", "", d.spare.condition, entry.completion
         ]);
         return rows;
       }
@@ -1085,7 +1120,7 @@
 
       async function exportCsv() {
         const rows = [[
-          "データ種別", "保存日時", "点検日", "車両番号", "区分", "タイヤ番号", "メーカー", "種類", "偏摩耗", "キズ", "空気圧", "状態", "完了率(%)"
+          "データ種別", "保存日時", "点検日", "車両番号", "区分", "タイヤ番号", "メーカー", "種類", "溝", "偏摩耗", "キズ", "空気圧", "状態", "完了率(%)"
         ]];
         const currentEntry = { ...snapshot(), kind: "現在入力" };
         rows.push(...rowsFor(currentEntry, currentEntry.kind));
@@ -1273,6 +1308,7 @@
         el.exportBackBtn.addEventListener("click", () => setFlowScreen(FLOW_SCREENS.TRUCK));
         el.spareButton.addEventListener("click", () => openDialog("spare"));
         el.exportCsvBtn.addEventListener("click", () => { void exportCsv(); });
+        el.quickResetBtn.addEventListener("click", resetCurrent);
         el.resetBtn.addEventListener("click", resetCurrent);
         el.openSettingsBtn.addEventListener("click", openSettingsDialog);
         el.settingsCloseXBtn.addEventListener("click", closeSettingsDialog);
