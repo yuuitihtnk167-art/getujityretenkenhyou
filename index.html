@@ -57,6 +57,9 @@
         var(--bg);
       -webkit-tap-highlight-color: transparent;
     }
+    body {
+      padding-bottom: 110px;
+    }
     .wrap { width: min(1100px, 94vw); margin: 14px auto 36px; }
     .header {
       position: sticky;
@@ -221,14 +224,41 @@
     .card.pending { border-style: dashed; }
     .card h3 { margin: 0; font-size: .98rem; }
     .card p { margin: 8px 0 0; font-size: .87rem; line-height: 1.45; }
-    .empty { color: var(--muted); font-size: .92rem; }
-    .bottom-settings {
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .screen-actions {
       margin-top: 12px;
-      display: flex;
       justify-content: center;
     }
-    .bottom-settings .btn {
-      width: min(360px, 100%);
+    .screen-actions .btn {
+      flex: 1 1 220px;
+    }
+    .fixed-settings {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      z-index: 40;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .fixed-settings .btn {
+      width: min(520px, 92vw);
+      pointer-events: auto;
+      box-shadow: var(--shadow);
+    }
+    .empty { color: var(--muted); font-size: .92rem; }
+    body.screen-truck .wrap {
+      width: min(1320px, 98vw);
+    }
+    body.screen-truck #truckScreen .panel-body {
+      min-height: calc(100vh - 230px);
+      display: flex;
+      flex-direction: column;
+    }
+    body.screen-truck #truckScreen .layout {
+      flex: 1;
     }
     .vehicle-list {
       display: grid;
@@ -322,7 +352,7 @@
     .toast {
       position: fixed;
       left: 50%;
-      bottom: 16px;
+      bottom: calc(86px + env(safe-area-inset-bottom));
       transform: translateX(-50%) translateY(16px);
       opacity: 0;
       pointer-events: none;
@@ -340,6 +370,7 @@
       .meta { grid-template-columns: 1fr; }
       .layout { grid-template-columns: 1fr minmax(130px, 1.2fr) 1fr; gap: 8px; }
       .tire { min-height: 58px; }
+      .screen-actions .btn { flex-basis: 100%; }
     }
   </style>
 </head>
@@ -353,61 +384,76 @@
       </div>
     </header>
 
-    <section class="panel">
-      <div class="panel-head">基本情報</div>
-      <div class="panel-body">
-        <div class="meta">
-          <div class="field">
-            <label for="inspectionDate">点検日（カレンダー選択）</label>
-            <input id="inspectionDate" type="date">
-          </div>
-          <div class="field">
-            <label for="vehicleNumber">車両番号</label>
-            <select id="vehicleNumber">
-              <option value="">選択してください</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>車種切替</label>
-            <div class="mode-switch">
-              <button id="mode12Btn" class="btn mode-btn active" type="button">大型低床</button>
-              <button id="mode10Btn" class="btn mode-btn" type="button">大型10輪</button>
+    <section id="basicScreen" class="screen active">
+      <section class="panel">
+        <div class="panel-head">基本情報</div>
+        <div class="panel-body">
+          <div class="meta">
+            <div class="field">
+              <label for="inspectionDate">点検日（カレンダー選択）</label>
+              <input id="inspectionDate" type="date">
+            </div>
+            <div class="field">
+              <label for="vehicleNumber">車両番号</label>
+              <select id="vehicleNumber">
+                <option value="">選択してください</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>車種切替</label>
+              <div class="mode-switch">
+                <button id="mode12Btn" class="btn mode-btn active" type="button">大型低床</button>
+                <button id="mode10Btn" class="btn mode-btn" type="button">大型10輪</button>
+              </div>
             </div>
           </div>
         </div>
+      </section>
+      <div class="row screen-actions">
+        <button id="basicNextBtn" class="btn primary" type="button">設定完了して点検開始</button>
       </div>
     </section>
 
-    <section class="panel">
-      <div class="panel-head">トラック上面図（タイヤ配置）</div>
-      <div class="panel-body">
-        <div class="layout" role="group" aria-label="タイヤ入力">
-          <div id="leftTires" class="col"></div>
-          <div id="truckAxes" class="truck"></div>
-          <div id="rightTires" class="col"></div>
-        </div>
-        <div class="spare">
-          <div>
-            <div><strong>スペアタイヤ</strong></div>
+    <section id="truckScreen" class="screen">
+      <section class="panel">
+        <div class="panel-head">トラック上面図（タイヤ配置）</div>
+        <div class="panel-body">
+          <div class="layout" role="group" aria-label="タイヤ入力">
+            <div id="leftTires" class="col"></div>
+            <div id="truckAxes" class="truck"></div>
+            <div id="rightTires" class="col"></div>
           </div>
-          <button id="spareButton" class="tire" type="button">スペア</button>
+          <div class="spare">
+            <div>
+              <div><strong>スペアタイヤ</strong></div>
+            </div>
+            <button id="spareButton" class="tire" type="button">スペア</button>
+          </div>
         </div>
+      </section>
+      <div class="row screen-actions">
+        <button id="truckBackBtn" class="btn" type="button">基本情報へ戻る</button>
+        <button id="truckToExportBtn" class="btn primary" type="button">点検完了してCSVへ</button>
       </div>
     </section>
 
-    <section class="panel">
-      <div class="panel-head">操作</div>
-      <div class="panel-body">
-        <div class="row">
-          <button id="exportCsvBtn" class="btn warn" type="button">CSVエクスポート</button>
-          <button id="resetBtn" class="btn danger" type="button">入力をリセット</button>
+    <section id="exportScreen" class="screen">
+      <section class="panel">
+        <div class="panel-head">CSVエクスポート</div>
+        <div class="panel-body">
+          <p id="exportSummary" class="empty"></p>
+          <div class="row">
+            <button id="exportCsvBtn" class="btn warn" type="button">CSVエクスポート</button>
+            <button id="exportBackBtn" class="btn" type="button">タイヤ配置へ戻る</button>
+            <button id="resetBtn" class="btn danger" type="button">新しい点検を開始</button>
+          </div>
         </div>
-      </div>
+      </section>
     </section>
+  </div>
 
-    <div class="bottom-settings">
-      <button id="openSettingsBtn" class="btn primary" type="button">設定を開く</button>
-    </div>
+  <div class="fixed-settings">
+    <button id="openSettingsBtn" class="btn" type="button">設定</button>
   </div>
 
   <dialog id="inputDialog" aria-label="タイヤ入力">
@@ -488,6 +534,11 @@
         LOW12: "low12",
         TEN10: "ten10"
       };
+      const FLOW_SCREENS = {
+        BASIC: "basic",
+        TRUCK: "truck",
+        EXPORT: "export"
+      };
 
       const DISPLAY_MAP_12 = ["①", "⑦", "②", "⑧", "③", "⑨", "④", "⑩", "⑤", "⑪", "⑥", "⑫"];
       const DISPLAY_MAP_10 = ["①", "⑥", "②", "⑦", "③", "⑧", "④", "⑨", "⑤", "⑩"];
@@ -521,17 +572,25 @@
       ];
 
       const el = {
+        basicScreen: document.getElementById("basicScreen"),
+        truckScreen: document.getElementById("truckScreen"),
+        exportScreen: document.getElementById("exportScreen"),
         inspectionDate: document.getElementById("inspectionDate"),
         vehicleNumber: document.getElementById("vehicleNumber"),
         mode12Btn: document.getElementById("mode12Btn"),
         mode10Btn: document.getElementById("mode10Btn"),
+        basicNextBtn: document.getElementById("basicNextBtn"),
         leftTires: document.getElementById("leftTires"),
         rightTires: document.getElementById("rightTires"),
         truckAxes: document.getElementById("truckAxes"),
         spareButton: document.getElementById("spareButton"),
+        truckBackBtn: document.getElementById("truckBackBtn"),
+        truckToExportBtn: document.getElementById("truckToExportBtn"),
         exportCsvBtn: document.getElementById("exportCsvBtn"),
-        resetBtn: document.getElementById("resetBtn"),
+        exportBackBtn: document.getElementById("exportBackBtn"),
         openSettingsBtn: document.getElementById("openSettingsBtn"),
+        exportSummary: document.getElementById("exportSummary"),
+        resetBtn: document.getElementById("resetBtn"),
         inputDialog: document.getElementById("inputDialog"),
         dialogTarget: document.getElementById("dialogTarget"),
         dialogCloseBtn: document.getElementById("dialogCloseBtn"),
@@ -618,6 +677,7 @@
       let exportDirHandle = null;
       let exportDirName = localStorage.getItem(STORAGE.exportDirName) || "";
       let dialog = { target: null, fields: [], step: 0 };
+      let currentScreen = FLOW_SCREENS.BASIC;
 
       const saveCurrent = () => {
         current.updatedAt = new Date().toISOString();
@@ -734,6 +794,24 @@
         el.mode10Btn.classList.toggle("active", !isLow12);
       }
 
+      function renderScreens() {
+        const basic = currentScreen === FLOW_SCREENS.BASIC;
+        const truck = currentScreen === FLOW_SCREENS.TRUCK;
+        const exp = currentScreen === FLOW_SCREENS.EXPORT;
+
+        el.basicScreen.classList.toggle("active", basic);
+        el.truckScreen.classList.toggle("active", truck);
+        el.exportScreen.classList.toggle("active", exp);
+        document.body.classList.toggle("screen-truck", truck);
+      }
+
+      function renderExportSummary() {
+        const vehicle = current.vehicleNumber || "未選択";
+        const completion = `${percent()}%`;
+        const typeLabel = current.truckType === TRUCK_TYPES.TEN10 ? "大型10輪" : "大型低床(12輪)";
+        el.exportSummary.textContent = `点検日: ${current.inspectionDate} / 車両番号: ${vehicle} / 車種: ${typeLabel} / 入力完了率: ${completion}`;
+      }
+
       function renderButtons() {
         getActiveIds(current.truckType).forEach((id) => {
           if (!tireButtons[id]) return;
@@ -806,8 +884,26 @@
       function renderAll() {
         renderMeta();
         renderSettings();
+        renderScreens();
+        renderExportSummary();
         renderTruckTypeButtons();
         renderButtons();
+      }
+
+      function setFlowScreen(screen) {
+        closeDialog();
+        currentScreen = screen;
+        renderAll();
+      }
+
+      function isBasicInfoReady() {
+        if (!current.inspectionDate) return false;
+        if (!current.vehicleNumber) return false;
+        return true;
+      }
+
+      function isInspectionComplete() {
+        return percent() === 100;
       }
 
       const firstUnfilled = (obj, fields) => {
@@ -1003,11 +1099,13 @@
       function resetCurrent() {
         if (!window.confirm("現在の入力内容をリセットします。よろしいですか？")) return;
         const truckType = current.truckType;
+        closeDialog();
         current = defaultCurrent();
         current.truckType = truckType;
         if (vehicles.length > 0) current.vehicleNumber = vehicles[0];
         saveCurrent();
         buildTires();
+        currentScreen = FLOW_SCREENS.BASIC;
         renderAll();
         showToast("現在入力をリセットしました");
       }
@@ -1141,6 +1239,22 @@
         });
         el.mode12Btn.addEventListener("click", () => setTruckType(TRUCK_TYPES.LOW12));
         el.mode10Btn.addEventListener("click", () => setTruckType(TRUCK_TYPES.TEN10));
+        el.basicNextBtn.addEventListener("click", () => {
+          if (!isBasicInfoReady()) {
+            showToast("基本情報をすべて設定してください");
+            return;
+          }
+          setFlowScreen(FLOW_SCREENS.TRUCK);
+        });
+        el.truckBackBtn.addEventListener("click", () => setFlowScreen(FLOW_SCREENS.BASIC));
+        el.truckToExportBtn.addEventListener("click", () => {
+          if (!isInspectionComplete()) {
+            showToast("未入力があります。すべて入力後にCSV画面へ進んでください");
+            return;
+          }
+          setFlowScreen(FLOW_SCREENS.EXPORT);
+        });
+        el.exportBackBtn.addEventListener("click", () => setFlowScreen(FLOW_SCREENS.TRUCK));
         el.spareButton.addEventListener("click", () => openDialog("spare"));
         el.exportCsvBtn.addEventListener("click", () => { void exportCsv(); });
         el.resetBtn.addEventListener("click", resetCurrent);
@@ -1188,6 +1302,7 @@
         initTheme();
         if (!current.inspectionDate) current.inspectionDate = today();
         if (!current.vehicleNumber && vehicles.length > 0) current.vehicleNumber = vehicles[0];
+        currentScreen = FLOW_SCREENS.BASIC;
         buildTires();
         bindEvents();
         saveCurrent();

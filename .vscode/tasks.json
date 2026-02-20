@@ -3,8 +3,9 @@
   "tasks": [
     {
       "label": "Start static server (8080)",
-      "type": "shell",
-      "command": "if (Get-Command py -ErrorAction SilentlyContinue) { py -m http.server 8080 } elseif (Get-Command python -ErrorAction SilentlyContinue) { python -m http.server 8080 } else { Write-Error 'Python not found'; exit 1 }",
+      "type": "process",
+      "command": "py",
+      "args": ["-m", "http.server", "8080"],
       "isBackground": true,
       "problemMatcher": {
         "owner": "custom",
@@ -26,8 +27,13 @@
     },
     {
       "label": "Stop static server (8080)",
-      "type": "shell",
-      "command": "powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }\"",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$lines = netstat -ano | Select-String ':8080'; $procIds = @(); foreach($line in $lines){ $parts = ($line.ToString() -split '\\s+') | Where-Object { $_ }; if($parts.Length -ge 5 -and $parts[3] -eq 'LISTENING'){ $procIds += $parts[4] } }; $procIds = $procIds | Sort-Object -Unique; foreach($procId in $procIds){ Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue }; exit 0"
+      ],
       "problemMatcher": []
     }
   ]
