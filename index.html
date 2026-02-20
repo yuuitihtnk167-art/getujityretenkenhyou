@@ -1,0 +1,1203 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>月次タイヤ点検表</title>
+  <meta name="description" content="大型トラック向けの月次タイヤ点検Webアプリ">
+  <meta name="theme-color" content="#1f4b73">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="タイヤ点検">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    :root {
+      --bg: #f1f5fa;
+      --bg2: #dbe4ef;
+      --surface: #ffffff;
+      --surface2: #edf2f8;
+      --text: #162232;
+      --muted: #53657b;
+      --line: #c9d5e4;
+      --accent: #1f4b73;
+      --ok: #2a9d6f;
+      --warn: #cf8d30;
+      --pending: #9aa9ba;
+      --danger: #b44b4b;
+      --tap: 56px;
+      --radius: 12px;
+      --shadow: 0 10px 26px rgba(24, 44, 66, 0.13);
+    }
+    body[data-theme="dark"] {
+      --bg: #0f1722;
+      --bg2: #182334;
+      --surface: #1a2838;
+      --surface2: #223447;
+      --text: #ecf3ff;
+      --muted: #aabed5;
+      --line: #324a62;
+      --accent: #62a4da;
+      --ok: #54c28f;
+      --warn: #efaf58;
+      --pending: #5f7388;
+      --danger: #e27f7f;
+      --shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: "BIZ UDPGothic", "Yu Gothic UI", "Meiryo", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 120% -10%, var(--bg2), transparent 55%),
+        radial-gradient(800px 500px at -20% 20%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 55%),
+        var(--bg);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wrap { width: min(1100px, 94vw); margin: 14px auto 36px; }
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
+    }
+    h1 { margin: 0; font-size: clamp(1rem, 2vw, 1.2rem); }
+    .sub { margin: 2px 0 0; color: var(--muted); font-size: .84rem; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      min-height: var(--tap);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      color: var(--text);
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { background: var(--accent); color: #fff; border-color: color-mix(in srgb, var(--accent) 70%, black); }
+    .btn.warn { background: color-mix(in srgb, var(--warn) 22%, var(--surface)); }
+    .btn.danger { background: color-mix(in srgb, var(--danger) 20%, var(--surface)); }
+    .panel {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface));
+      font-weight: 700;
+    }
+    .panel-body { padding: 12px; }
+    .meta {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: end;
+    }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: .84rem; color: var(--muted); font-weight: 700; }
+    .field input,
+    .field select {
+      min-height: var(--tap);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 1rem;
+      color: var(--text);
+      background: var(--surface2);
+      width: 100%;
+    }
+    .mode-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .mode-btn {
+      min-height: 54px;
+      padding: 8px 10px;
+      font-size: .9rem;
+    }
+    .mode-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: color-mix(in srgb, var(--accent) 70%, black);
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr minmax(170px, 2fr) 1fr;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface2);
+      padding: 12px;
+    }
+    .col {
+      display: grid;
+      gap: 10px;
+      align-content: stretch;
+    }
+    .tire-slot {
+      display: flex;
+      align-items: stretch;
+      height: 100%;
+    }
+    .tire-slot.dual {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .truck {
+      border: 2px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+      border-radius: 14px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 18%, var(--surface)), var(--surface));
+      display: grid;
+      padding: 8px;
+    }
+    .ax {
+      border-bottom: 1px dashed color-mix(in srgb, var(--line) 70%, transparent);
+      color: var(--muted);
+      font-size: .82rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ax:last-child { border-bottom: none; }
+    .tire {
+      min-height: 62px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: color-mix(in srgb, var(--pending) 40%, var(--surface2));
+      color: color-mix(in srgb, var(--text) 86%, black);
+      font-size: 1.02rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .tire.partial { background: color-mix(in srgb, var(--warn) 34%, var(--surface2)); border-color: color-mix(in srgb, var(--warn) 70%, var(--line)); }
+    .tire.done { background: color-mix(in srgb, var(--ok) 35%, var(--surface2)); border-color: color-mix(in srgb, var(--ok) 70%, var(--line)); }
+    .spare {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--surface2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .muted { color: var(--muted); font-size: .84rem; }
+    .summary {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface2);
+      padding: 10px;
+      min-height: 105px;
+    }
+    .card.pending { border-style: dashed; }
+    .card h3 { margin: 0; font-size: .98rem; }
+    .card p { margin: 8px 0 0; font-size: .87rem; line-height: 1.45; }
+    .empty { color: var(--muted); font-size: .92rem; }
+    .bottom-settings {
+      margin-top: 12px;
+      display: flex;
+      justify-content: center;
+    }
+    .bottom-settings .btn {
+      width: min(360px, 100%);
+    }
+    .vehicle-list {
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .vehicle-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface2);
+      padding: 8px 10px;
+    }
+    .vehicle-item span {
+      font-size: .92rem;
+      font-weight: 700;
+      word-break: break-all;
+    }
+    .mini-btn {
+      min-height: 42px;
+      padding: 8px 12px;
+      font-size: .85rem;
+      font-weight: 700;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    dialog {
+      border: none;
+      width: min(92vw, 420px);
+      padding: 0;
+      background: transparent;
+    }
+    dialog::backdrop { background: rgba(7, 13, 22, .52); }
+    .modal {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface));
+    }
+    .modal-body { padding: 12px; display: grid; gap: 10px; }
+    .step { color: var(--muted); font-size: .88rem; font-weight: 700; }
+    .modal h3 { margin: 0; font-size: 1rem; }
+    .sel {
+      min-height: var(--tap);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 8px 10px;
+    }
+    .preview {
+      margin: 0;
+      min-height: 42px;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--surface2) 70%, transparent);
+      padding: 8px 10px;
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.4;
+      white-space: pre-line;
+    }
+    .modal-foot {
+      padding: 12px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%) translateY(16px);
+      opacity: 0;
+      pointer-events: none;
+      background: color-mix(in srgb, var(--accent) 90%, black);
+      color: #fff;
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, white);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: .9rem;
+      transition: opacity .15s ease, transform .15s ease;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    @media (max-width: 860px) {
+      .header { position: static; }
+      .meta { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr minmax(130px, 1.2fr) 1fr; gap: 8px; }
+      .tire { min-height: 58px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <div>
+        <h1>月次タイヤ点検表</h1>
+      </div>
+      <div class="row">
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-head">基本情報</div>
+      <div class="panel-body">
+        <div class="meta">
+          <div class="field">
+            <label for="inspectionDate">点検日（カレンダー選択）</label>
+            <input id="inspectionDate" type="date">
+          </div>
+          <div class="field">
+            <label for="vehicleNumber">車両番号</label>
+            <select id="vehicleNumber">
+              <option value="">選択してください</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>車種切替</label>
+            <div class="mode-switch">
+              <button id="mode12Btn" class="btn mode-btn active" type="button">大型低床</button>
+              <button id="mode10Btn" class="btn mode-btn" type="button">大型10輪</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">トラック上面図（タイヤ配置）</div>
+      <div class="panel-body">
+        <div class="layout" role="group" aria-label="タイヤ入力">
+          <div id="leftTires" class="col"></div>
+          <div id="truckAxes" class="truck"></div>
+          <div id="rightTires" class="col"></div>
+        </div>
+        <div class="spare">
+          <div>
+            <div><strong>スペアタイヤ</strong></div>
+          </div>
+          <button id="spareButton" class="tire" type="button">スペア</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">操作</div>
+      <div class="panel-body">
+        <div class="row">
+          <button id="exportCsvBtn" class="btn warn" type="button">CSVエクスポート</button>
+          <button id="resetBtn" class="btn danger" type="button">入力をリセット</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="bottom-settings">
+      <button id="openSettingsBtn" class="btn primary" type="button">設定を開く</button>
+    </div>
+  </div>
+
+  <dialog id="inputDialog" aria-label="タイヤ入力">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="dialogTarget">タイヤ入力</h3>
+        <button id="dialogCloseBtn" class="btn" type="button" style="min-height:auto;padding:6px 10px;">閉じる</button>
+      </div>
+      <div class="modal-body">
+        <div id="stepIndicator" class="step"></div>
+        <h3 id="stepTitle"></h3>
+        <select id="stepSelect" class="sel"></select>
+        <div class="field">
+          <label>入力内容一覧</label>
+          <p id="stepPreview" class="preview"></p>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button id="prevStepBtn" class="btn" type="button">前の項目</button>
+        <button id="closeStepBtn" class="btn primary" type="button">完了</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="settingsDialog" aria-label="設定">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>設定</h3>
+        <button id="settingsCloseXBtn" class="btn" type="button" style="min-height:auto;padding:6px 10px;">閉じる</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="themeMode">表示モード</label>
+          <select id="themeMode" class="sel">
+            <option value="light">ライトモード</option>
+            <option value="dark">ダークモード</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>CSV保存先フォルダ</label>
+          <div class="row">
+            <button id="selectExportDirBtn" class="btn" type="button">保存先を選択</button>
+            <button id="clearExportDirBtn" class="btn danger" type="button">指定を解除</button>
+          </div>
+          <div id="exportDirText" class="muted">保存先: 未指定（通常ダウンロード）</div>
+        </div>
+        <div class="field">
+          <label for="newVehicleNumber">車両番号を登録</label>
+          <div class="row">
+            <input id="newVehicleNumber" type="text" placeholder="例: 品川 100 あ 1234" autocomplete="off">
+            <button id="addVehicleBtn" class="btn primary" type="button">登録</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>登録済み車両番号</label>
+          <div id="vehicleList" class="vehicle-list"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button id="closeSettingsBtn" class="btn primary" type="button">閉じる</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE = {
+        current: "tire.monthly.current.v1",
+        vehicles: "tire.monthly.vehicles.v1",
+        exportDirName: "tire.monthly.export.dirname.v1",
+        theme: "tire.monthly.theme.v1"
+      };
+
+      const TRUCK_TYPES = {
+        LOW12: "low12",
+        TEN10: "ten10"
+      };
+
+      const DISPLAY_MAP_12 = ["①", "⑦", "②", "⑧", "③", "⑨", "④", "⑩", "⑤", "⑪", "⑥", "⑫"];
+      const DISPLAY_MAP_10 = ["①", "⑥", "②", "⑦", "③", "⑧", "④", "⑨", "⑤", "⑩"];
+      const ALL_IDS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+      const TRUCK_LAYOUTS = {
+        [TRUCK_TYPES.LOW12]: {
+          left: [[1], [3], [5, 7], [9, 11]],
+          right: [[2], [4], [6, 8], [10, 12]],
+          axes: ["前輪", "第2軸", "第3軸（ダブル）", "第4軸（ダブル）"]
+        },
+        [TRUCK_TYPES.TEN10]: {
+          left: [[1], [3, 5], [7, 9]],
+          right: [[2], [4, 6], [8, 10]],
+          axes: ["前輪", "第2軸（ダブル）", "第3軸（ダブル）"]
+        }
+      };
+
+      const NORMAL_FIELDS = [
+        { key: "maker", label: "メーカー", options: ["ミシュラン", "サイルン", "チャオヤン", "トーヨー", "ジンユー"] },
+        { key: "type", label: "種類", options: ["ノーマル", "スタッドレス", "再生", "リグ"] },
+        { key: "wear", label: "偏摩耗", options: ["○", "△", "✕"] },
+        { key: "damage", label: "キズ", options: ["○", "✕"] },
+        { key: "pressure", label: "空気圧", options: ["○", "✕"] }
+      ];
+
+      const SPARE_FIELDS = [
+        { key: "maker", label: "メーカー", options: ["ミシュラン", "サイルン", "チャオヤン", "トーヨー", "ジンユー"] },
+        { key: "type", label: "種類", options: ["ノーマル", "スタッドレス", "再生", "リグ"] },
+        { key: "condition", label: "状態", options: ["○", "△", "✕"] }
+      ];
+
+      const el = {
+        inspectionDate: document.getElementById("inspectionDate"),
+        vehicleNumber: document.getElementById("vehicleNumber"),
+        mode12Btn: document.getElementById("mode12Btn"),
+        mode10Btn: document.getElementById("mode10Btn"),
+        leftTires: document.getElementById("leftTires"),
+        rightTires: document.getElementById("rightTires"),
+        truckAxes: document.getElementById("truckAxes"),
+        spareButton: document.getElementById("spareButton"),
+        exportCsvBtn: document.getElementById("exportCsvBtn"),
+        resetBtn: document.getElementById("resetBtn"),
+        openSettingsBtn: document.getElementById("openSettingsBtn"),
+        inputDialog: document.getElementById("inputDialog"),
+        dialogTarget: document.getElementById("dialogTarget"),
+        dialogCloseBtn: document.getElementById("dialogCloseBtn"),
+        stepIndicator: document.getElementById("stepIndicator"),
+        stepTitle: document.getElementById("stepTitle"),
+        stepSelect: document.getElementById("stepSelect"),
+        stepPreview: document.getElementById("stepPreview"),
+        prevStepBtn: document.getElementById("prevStepBtn"),
+        closeStepBtn: document.getElementById("closeStepBtn"),
+        settingsDialog: document.getElementById("settingsDialog"),
+        settingsCloseXBtn: document.getElementById("settingsCloseXBtn"),
+        closeSettingsBtn: document.getElementById("closeSettingsBtn"),
+        themeMode: document.getElementById("themeMode"),
+        selectExportDirBtn: document.getElementById("selectExportDirBtn"),
+        clearExportDirBtn: document.getElementById("clearExportDirBtn"),
+        exportDirText: document.getElementById("exportDirText"),
+        newVehicleNumber: document.getElementById("newVehicleNumber"),
+        addVehicleBtn: document.getElementById("addVehicleBtn"),
+        vehicleList: document.getElementById("vehicleList"),
+        toast: document.getElementById("toast")
+      };
+
+      const today = () => new Date().toISOString().slice(0, 10);
+      const normalizeTruckType = (type) => type === TRUCK_TYPES.TEN10 ? TRUCK_TYPES.TEN10 : TRUCK_TYPES.LOW12;
+      const getLayout = (type) => TRUCK_LAYOUTS[normalizeTruckType(type)];
+      const getActiveIds = (type) => {
+        const layout = getLayout(type);
+        return layout.left.concat(layout.right).flat();
+      };
+      const displayMapFor = (type) => normalizeTruckType(type) === TRUCK_TYPES.TEN10 ? DISPLAY_MAP_10 : DISPLAY_MAP_12;
+      const circle = (id, type = TRUCK_TYPES.LOW12) => displayMapFor(type)[id - 1] || String(id);
+
+      const newTire = () => ({ maker: "", type: "", wear: "", damage: "", pressure: "" });
+      const newSpare = () => ({ maker: "", type: "", condition: "" });
+      const defaultCurrent = () => ({
+        truckType: TRUCK_TYPES.LOW12,
+        inspectionDate: today(),
+        vehicleNumber: "",
+        tires: Object.fromEntries(ALL_IDS.map((id) => [id, newTire()])),
+        spare: newSpare(),
+        updatedAt: new Date().toISOString()
+      });
+
+      const read = (key, fallback) => {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : fallback;
+        } catch {
+          return fallback;
+        }
+      };
+
+      const normalizeCurrent = (obj) => {
+        const base = defaultCurrent();
+        const curr = {
+          ...base,
+          ...(obj || {}),
+          truckType: normalizeTruckType(obj && obj.truckType),
+          tires: base.tires,
+          spare: { ...base.spare, ...(obj && obj.spare ? obj.spare : {}) }
+        };
+        ALL_IDS.forEach((id) => {
+          curr.tires[id] = { ...newTire(), ...(obj && obj.tires && obj.tires[id] ? obj.tires[id] : {}) };
+        });
+        if (!curr.inspectionDate) curr.inspectionDate = today();
+        if (!curr.updatedAt) curr.updatedAt = new Date().toISOString();
+        return curr;
+      };
+
+      const normalizeVehicles = (rows) => {
+        if (!Array.isArray(rows)) return [];
+        const uniq = [];
+        rows.forEach((item) => {
+          const value = String(item ?? "").trim();
+          if (!value) return;
+          if (!uniq.includes(value)) uniq.push(value);
+        });
+        return uniq.slice(0, 300);
+      };
+
+      let current = normalizeCurrent(read(STORAGE.current, defaultCurrent()));
+      let vehicles = normalizeVehicles(read(STORAGE.vehicles, []));
+      let tireButtons = {};
+      let exportDirHandle = null;
+      let exportDirName = localStorage.getItem(STORAGE.exportDirName) || "";
+      let dialog = { target: null, fields: [], step: 0 };
+
+      const saveCurrent = () => {
+        current.updatedAt = new Date().toISOString();
+        localStorage.setItem(STORAGE.current, JSON.stringify(current));
+      };
+      const saveVehicles = () => localStorage.setItem(STORAGE.vehicles, JSON.stringify(vehicles));
+      const saveExportDirName = (name) => {
+        exportDirName = name || "";
+        if (exportDirName) localStorage.setItem(STORAGE.exportDirName, exportDirName);
+        else localStorage.removeItem(STORAGE.exportDirName);
+      };
+
+      const canPickDirectory = () => typeof window.showDirectoryPicker === "function";
+
+      function openHandleDb() {
+        return new Promise((resolve, reject) => {
+          if (!("indexedDB" in window)) {
+            reject(new Error("IndexedDB unavailable"));
+            return;
+          }
+          const req = indexedDB.open("tire.monthly.fs.v1", 1);
+          req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error || new Error("DB open failed"));
+        });
+      }
+
+      async function idbSet(key, value) {
+        const db = await openHandleDb();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction("kv", "readwrite");
+          tx.objectStore("kv").put(value, key);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error || new Error("DB write failed"));
+        });
+        db.close();
+      }
+
+      async function idbGet(key) {
+        const db = await openHandleDb();
+        const value = await new Promise((resolve, reject) => {
+          const tx = db.transaction("kv", "readonly");
+          const req = tx.objectStore("kv").get(key);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error || new Error("DB read failed"));
+        });
+        db.close();
+        return value;
+      }
+
+      async function idbDelete(key) {
+        const db = await openHandleDb();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction("kv", "readwrite");
+          tx.objectStore("kv").delete(key);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error || new Error("DB delete failed"));
+        });
+        db.close();
+      }
+
+      async function ensureDirWritePermission(handle) {
+        const options = { mode: "readwrite" };
+        if ((await handle.queryPermission(options)) === "granted") return true;
+        return (await handle.requestPermission(options)) === "granted";
+      }
+
+      async function loadExportDirHandle() {
+        if (!canPickDirectory()) return;
+        try {
+          const handle = await idbGet("exportDirHandle");
+          if (!handle) return;
+          exportDirHandle = handle;
+          if (!exportDirName && handle.name) saveExportDirName(handle.name);
+          renderSettings();
+        } catch (error) {
+          console.warn("Export directory restore failed:", error);
+        }
+      }
+
+      if (current.vehicleNumber && !vehicles.includes(current.vehicleNumber)) {
+        vehicles.unshift(current.vehicleNumber);
+        saveVehicles();
+      }
+
+      const fillCount = (obj, fields) => fields.reduce((sum, f) => sum + (obj[f.key] ? 1 : 0), 0);
+      const totalCount = () => getActiveIds(current.truckType).reduce((sum, id) => sum + fillCount(current.tires[id], NORMAL_FIELDS), 0) + fillCount(current.spare, SPARE_FIELDS);
+      const percent = () => {
+        const totalFields = getActiveIds(current.truckType).length * NORMAL_FIELDS.length + SPARE_FIELDS.length;
+        return Math.round((totalCount() / totalFields) * 100);
+      };
+
+      const tireClass = (id) => {
+        const c = fillCount(current.tires[id], NORMAL_FIELDS);
+        if (c === 0) return "";
+        if (c === NORMAL_FIELDS.length) return "done";
+        return "partial";
+      };
+      const spareClass = () => {
+        const c = fillCount(current.spare, SPARE_FIELDS);
+        if (c === 0) return "";
+        if (c === SPARE_FIELDS.length) return "done";
+        return "partial";
+      };
+
+      const text = (v) => v || "未入力";
+
+      function renderTruckTypeButtons() {
+        const isLow12 = current.truckType === TRUCK_TYPES.LOW12;
+        el.mode12Btn.classList.toggle("active", isLow12);
+        el.mode10Btn.classList.toggle("active", !isLow12);
+      }
+
+      function renderButtons() {
+        getActiveIds(current.truckType).forEach((id) => {
+          if (!tireButtons[id]) return;
+          tireButtons[id].className = `tire ${tireClass(id)}`.trim();
+        });
+        el.spareButton.className = `tire ${spareClass()}`.trim();
+      }
+
+      function renderVehicleNumberSelect() {
+        const selected = current.vehicleNumber || "";
+        el.vehicleNumber.innerHTML = "";
+        el.vehicleNumber.appendChild(new Option("選択してください", ""));
+        vehicles.forEach((vehicle) => {
+          el.vehicleNumber.appendChild(new Option(vehicle, vehicle));
+        });
+        if (selected && !vehicles.includes(selected)) {
+          el.vehicleNumber.appendChild(new Option(selected, selected));
+        }
+        el.vehicleNumber.value = selected;
+      }
+
+      function renderVehicleList() {
+        el.vehicleList.innerHTML = "";
+        if (vehicles.length === 0) {
+          el.vehicleList.innerHTML = '<div class="empty">登録済み車両番号はありません。</div>';
+          return;
+        }
+
+        vehicles.forEach((vehicle) => {
+          const row = document.createElement("div");
+          row.className = "vehicle-item";
+
+          const label = document.createElement("span");
+          label.textContent = vehicle;
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "mini-btn";
+          remove.textContent = "削除";
+          remove.dataset.vehicle = vehicle;
+
+          row.appendChild(label);
+          row.appendChild(remove);
+          el.vehicleList.appendChild(row);
+        });
+      }
+
+      function renderSettings() {
+        const mode = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
+        el.themeMode.value = mode;
+        if (canPickDirectory()) {
+          el.selectExportDirBtn.disabled = false;
+          el.clearExportDirBtn.disabled = !exportDirName;
+          el.exportDirText.textContent = exportDirName
+            ? `保存先: ${exportDirName}`
+            : "保存先: 未指定（通常ダウンロード）";
+        } else {
+          el.selectExportDirBtn.disabled = true;
+          el.clearExportDirBtn.disabled = true;
+          el.exportDirText.textContent = "このブラウザでは保存先指定は未対応です（通常ダウンロード）";
+        }
+        renderVehicleList();
+      }
+
+      function renderMeta() {
+        el.inspectionDate.value = current.inspectionDate;
+        renderVehicleNumberSelect();
+      }
+
+      function renderAll() {
+        renderMeta();
+        renderSettings();
+        renderTruckTypeButtons();
+        renderButtons();
+      }
+
+      const firstUnfilled = (obj, fields) => {
+        const i = fields.findIndex((f) => !obj[f.key]);
+        return i >= 0 ? i : 0;
+      };
+
+      function openDialog(type, id = null) {
+        const spare = type === "spare";
+        dialog = {
+          target: spare ? "spare" : id,
+          fields: spare ? SPARE_FIELDS : NORMAL_FIELDS,
+          step: 0
+        };
+        const obj = spare ? current.spare : current.tires[id];
+        dialog.step = firstUnfilled(obj, dialog.fields);
+        el.dialogTarget.textContent = spare ? "スペアタイヤ入力" : `${circle(id, current.truckType)} タイヤ入力`;
+        renderStep();
+        if (typeof el.inputDialog.showModal === "function") el.inputDialog.showModal();
+        else el.inputDialog.setAttribute("open", "");
+      }
+
+      function closeDialog() {
+        if (el.inputDialog.open && typeof el.inputDialog.close === "function") el.inputDialog.close();
+        else el.inputDialog.removeAttribute("open");
+      }
+
+      function openSettingsDialog() {
+        renderSettings();
+        if (typeof el.settingsDialog.showModal === "function") el.settingsDialog.showModal();
+        else el.settingsDialog.setAttribute("open", "");
+      }
+
+      function closeSettingsDialog() {
+        if (el.settingsDialog.open && typeof el.settingsDialog.close === "function") el.settingsDialog.close();
+        else el.settingsDialog.removeAttribute("open");
+      }
+
+      const targetObj = () => dialog.target === "spare" ? current.spare : current.tires[dialog.target];
+
+      function renderStep() {
+        const obj = targetObj();
+        const field = dialog.fields[dialog.step];
+        el.stepIndicator.textContent = `項目 ${dialog.step + 1} / ${dialog.fields.length}（選択で自動遷移）`;
+        el.stepTitle.textContent = field.label;
+        el.stepSelect.innerHTML = ['<option value="">選択してください</option>']
+          .concat(field.options.map((v) => `<option value="${v}">${v}</option>`))
+          .join("");
+        el.stepSelect.value = obj[field.key] || "";
+        el.stepPreview.textContent = dialog.fields.map((f) => `${f.label}: ${text(obj[f.key])}`).join("\n");
+        el.prevStepBtn.disabled = dialog.step === 0;
+        requestAnimationFrame(() => el.stepSelect.focus());
+      }
+
+      function applyStep(value) {
+        const obj = targetObj();
+        const field = dialog.fields[dialog.step];
+        obj[field.key] = value;
+        saveCurrent();
+        renderAll();
+        if (dialog.step < dialog.fields.length - 1) {
+          dialog.step += 1;
+          renderStep();
+          return;
+        }
+        showToast(`${el.dialogTarget.textContent} を更新しました`);
+        closeDialog();
+      }
+
+      function showToast(message) {
+        el.toast.textContent = message;
+        el.toast.classList.add("show");
+        clearTimeout(showToast.tid);
+        showToast.tid = setTimeout(() => el.toast.classList.remove("show"), 1800);
+      }
+
+      function snapshot() {
+        return {
+          savedAt: new Date().toISOString(),
+          completion: percent(),
+          data: normalizeCurrent(JSON.parse(JSON.stringify(current)))
+        };
+      }
+
+      function esc(v) {
+        const s = String(v ?? "");
+        if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      }
+
+      function rowsFor(entry, kind) {
+        const d = entry.data;
+        const rows = [];
+        getActiveIds(d.truckType).forEach((id) => {
+          const t = d.tires[id];
+          rows.push([
+            kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, "通常", circle(id, d.truckType),
+            t.maker, t.type, t.wear, t.damage, t.pressure, "", entry.completion
+          ]);
+        });
+        rows.push([
+          kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, "スペア", "スペア",
+          d.spare.maker, d.spare.type, "", "", "", d.spare.condition, entry.completion
+        ]);
+        return rows;
+      }
+
+      async function selectExportDirectory() {
+        if (!canPickDirectory()) {
+          showToast("このブラウザでは保存先指定に対応していません");
+          return;
+        }
+        try {
+          const handle = await window.showDirectoryPicker({ mode: "readwrite" });
+          const granted = await ensureDirWritePermission(handle);
+          if (!granted) {
+            showToast("保存先フォルダへの書き込み許可が必要です");
+            return;
+          }
+          exportDirHandle = handle;
+          saveExportDirName(handle.name || "選択済みフォルダ");
+          try {
+            await idbSet("exportDirHandle", handle);
+          } catch (error) {
+            console.warn("Export directory save failed:", error);
+          }
+          renderSettings();
+          showToast("CSV保存先フォルダを設定しました");
+        } catch (error) {
+          if (error && error.name === "AbortError") return;
+          console.warn("Directory picker error:", error);
+          showToast("保存先フォルダの設定に失敗しました");
+        }
+      }
+
+      async function clearExportDirectory() {
+        exportDirHandle = null;
+        saveExportDirName("");
+        try {
+          await idbDelete("exportDirHandle");
+        } catch (error) {
+          console.warn("Export directory clear failed:", error);
+        }
+        renderSettings();
+        showToast("CSV保存先フォルダの指定を解除しました");
+      }
+
+      async function writeCsvToConfiguredDirectory(fileName, content) {
+        if (!exportDirHandle) return false;
+        try {
+          const granted = await ensureDirWritePermission(exportDirHandle);
+          if (!granted) return false;
+          const fileHandle = await exportDirHandle.getFileHandle(fileName, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(content);
+          await writable.close();
+          return true;
+        } catch (error) {
+          console.warn("Direct file write failed:", error);
+          return false;
+        }
+      }
+
+      async function exportCsv() {
+        const rows = [[
+          "データ種別", "保存日時", "点検日", "車両番号", "区分", "タイヤ番号", "メーカー", "種類", "偏摩耗", "キズ", "空気圧", "状態", "完了率(%)"
+        ]];
+        const currentEntry = { ...snapshot(), kind: "現在入力" };
+        rows.push(...rowsFor(currentEntry, currentEntry.kind));
+
+        const csv = rows.map((r) => r.map(esc).join(",")).join("\r\n");
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const fileName = `月次タイヤ点検_${stamp}.csv`;
+        const content = "\uFEFF" + csv;
+
+        if (await writeCsvToConfiguredDirectory(fileName, content)) {
+          showToast(`CSVを指定フォルダ(${exportDirName || "選択先"})に保存しました`);
+          return;
+        }
+
+        const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast(exportDirName ? "指定フォルダへ保存できず、通常ダウンロードしました" : "CSVを出力しました");
+      }
+
+      function resetCurrent() {
+        if (!window.confirm("現在の入力内容をリセットします。よろしいですか？")) return;
+        const truckType = current.truckType;
+        current = defaultCurrent();
+        current.truckType = truckType;
+        if (vehicles.length > 0) current.vehicleNumber = vehicles[0];
+        saveCurrent();
+        buildTires();
+        renderAll();
+        showToast("現在入力をリセットしました");
+      }
+
+      function applyTheme(theme) {
+        document.body.setAttribute("data-theme", theme);
+        if (el.themeMode) el.themeMode.value = theme === "dark" ? "dark" : "light";
+      }
+
+      function initTheme() {
+        const stored = localStorage.getItem(STORAGE.theme);
+        if (stored === "dark" || stored === "light") {
+          applyTheme(stored);
+          return;
+        }
+        const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        applyTheme(dark ? "dark" : "light");
+      }
+
+      function setTheme(theme) {
+        const next = theme === "dark" ? "dark" : "light";
+        localStorage.setItem(STORAGE.theme, next);
+        applyTheme(next);
+      }
+
+      function setTruckType(type) {
+        const next = normalizeTruckType(type);
+        if (current.truckType === next) return;
+        current.truckType = next;
+        saveCurrent();
+        closeDialog();
+        buildTires();
+        renderAll();
+      }
+
+      function addVehicleNumber() {
+        const value = String(el.newVehicleNumber.value || "").trim();
+        if (!value) {
+          showToast("車両番号を入力してください");
+          return;
+        }
+        if (vehicles.includes(value)) {
+          showToast("同じ車両番号は登録済みです");
+          return;
+        }
+
+        vehicles.push(value);
+        vehicles.sort((a, b) => a.localeCompare(b, "ja"));
+        saveVehicles();
+
+        if (!current.vehicleNumber) {
+          current.vehicleNumber = value;
+          saveCurrent();
+        }
+
+        el.newVehicleNumber.value = "";
+        renderAll();
+        showToast("車両番号を登録しました");
+      }
+
+      function removeVehicleNumber(value) {
+        const index = vehicles.indexOf(value);
+        if (index < 0) return;
+        if (!window.confirm(`「${value}」を削除しますか？`)) return;
+
+        vehicles.splice(index, 1);
+        saveVehicles();
+
+        if (current.vehicleNumber === value) {
+          current.vehicleNumber = vehicles[0] || "";
+          saveCurrent();
+        }
+
+        renderAll();
+        showToast("車両番号を削除しました");
+      }
+
+      function buildTires() {
+        const layout = getLayout(current.truckType);
+        const rowCount = layout.axes.length;
+
+        el.leftTires.innerHTML = "";
+        el.rightTires.innerHTML = "";
+        el.truckAxes.innerHTML = "";
+        el.leftTires.style.gridTemplateRows = `repeat(${rowCount}, minmax(0, 1fr))`;
+        el.rightTires.style.gridTemplateRows = `repeat(${rowCount}, minmax(0, 1fr))`;
+        el.truckAxes.style.gridTemplateRows = `repeat(${rowCount}, minmax(0, 1fr))`;
+        tireButtons = {};
+
+        layout.axes.forEach((label) => {
+          const axis = document.createElement("div");
+          axis.className = "ax";
+          axis.textContent = label;
+          el.truckAxes.appendChild(axis);
+        });
+
+        const make = (id) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "tire";
+          b.textContent = circle(id, current.truckType);
+          b.addEventListener("click", () => openDialog("tire", id));
+          tireButtons[id] = b;
+          return b;
+        };
+
+        const appendSide = (container, layout) => {
+          layout.forEach((group) => {
+            const slot = document.createElement("div");
+            slot.className = `tire-slot ${group.length > 1 ? "dual" : "single"}`;
+            group.forEach((id) => slot.appendChild(make(id)));
+            container.appendChild(slot);
+          });
+        };
+
+        appendSide(el.leftTires, layout.left);
+        appendSide(el.rightTires, layout.right);
+      }
+
+      function bindEvents() {
+        el.inspectionDate.addEventListener("change", (ev) => {
+          if (!ev.target.value) return;
+          current.inspectionDate = ev.target.value;
+          saveCurrent();
+          renderAll();
+        });
+        el.vehicleNumber.addEventListener("change", (ev) => {
+          current.vehicleNumber = ev.target.value;
+          saveCurrent();
+          renderAll();
+        });
+        el.mode12Btn.addEventListener("click", () => setTruckType(TRUCK_TYPES.LOW12));
+        el.mode10Btn.addEventListener("click", () => setTruckType(TRUCK_TYPES.TEN10));
+        el.spareButton.addEventListener("click", () => openDialog("spare"));
+        el.exportCsvBtn.addEventListener("click", () => { void exportCsv(); });
+        el.resetBtn.addEventListener("click", resetCurrent);
+        el.openSettingsBtn.addEventListener("click", openSettingsDialog);
+        el.settingsCloseXBtn.addEventListener("click", closeSettingsDialog);
+        el.closeSettingsBtn.addEventListener("click", closeSettingsDialog);
+        el.themeMode.addEventListener("change", (ev) => setTheme(ev.target.value));
+        el.selectExportDirBtn.addEventListener("click", () => { void selectExportDirectory(); });
+        el.clearExportDirBtn.addEventListener("click", () => { void clearExportDirectory(); });
+        el.addVehicleBtn.addEventListener("click", addVehicleNumber);
+        el.newVehicleNumber.addEventListener("keydown", (ev) => {
+          if (ev.key !== "Enter") return;
+          ev.preventDefault();
+          addVehicleNumber();
+        });
+        el.vehicleList.addEventListener("click", (ev) => {
+          const target = ev.target;
+          if (!(target instanceof HTMLButtonElement)) return;
+          const vehicle = target.dataset.vehicle;
+          if (!vehicle) return;
+          removeVehicleNumber(vehicle);
+        });
+        el.dialogCloseBtn.addEventListener("click", closeDialog);
+        el.closeStepBtn.addEventListener("click", closeDialog);
+        el.prevStepBtn.addEventListener("click", () => {
+          if (dialog.step > 0) {
+            dialog.step -= 1;
+            renderStep();
+          }
+        });
+        el.stepSelect.addEventListener("change", (ev) => applyStep(ev.target.value));
+
+      }
+
+      async function registerSW() {
+        if (!("serviceWorker" in navigator)) return;
+        try {
+          await navigator.serviceWorker.register("./sw.js");
+        } catch (e) {
+          console.warn("Service Worker registration failed:", e);
+        }
+      }
+
+      function init() {
+        initTheme();
+        if (!current.inspectionDate) current.inspectionDate = today();
+        if (!current.vehicleNumber && vehicles.length > 0) current.vehicleNumber = vehicles[0];
+        buildTires();
+        bindEvents();
+        saveCurrent();
+        renderAll();
+        void loadExportDirHandle();
+        registerSW();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>

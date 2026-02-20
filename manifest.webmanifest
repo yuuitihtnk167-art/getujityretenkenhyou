@@ -1,0 +1,26 @@
+{
+  "name": "月次タイヤ点検表（大型トラック用）",
+  "short_name": "タイヤ点検",
+  "description": "大型トラック向けの月次タイヤ点検Webアプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f5fa",
+  "theme_color": "#1f4b73",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

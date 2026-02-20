@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start static server (8080)",
+      "type": "shell",
+      "command": "if (Get-Command py -ErrorAction SilentlyContinue) { py -m http.server 8080 } elseif (Get-Command python -ErrorAction SilentlyContinue) { python -m http.server 8080 } else { Write-Error 'Python not found'; exit 1 }",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "custom",
+        "pattern": {
+          "regexp": "."
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Serving HTTP on .*port 8080"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Stop static server (8080)",
+      "type": "shell",
+      "command": "powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }\"",
+      "problemMatcher": []
+    }
+  ]
+}
