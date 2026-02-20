@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
@@ -115,10 +115,20 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       align-items: end;
     }
+    .basic-meta {
+      grid-template-areas:
+        "date vehicle mode"
+        "driver vehicle mode";
+    }
+    .basic-meta .field-date { grid-area: date; }
+    .basic-meta .field-driver { grid-area: driver; }
+    .basic-meta .field-vehicle { grid-area: vehicle; }
+    .basic-meta .field-mode { grid-area: mode; }
     .field { display: grid; gap: 6px; }
     .field label { font-size: .84rem; color: var(--muted); font-weight: 700; }
     .field input,
-    .field select {
+    .field select,
+    .field textarea {
       min-height: var(--tap);
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -127,6 +137,11 @@
       color: var(--text);
       background: var(--surface2);
       width: 100%;
+    }
+    .field textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: inherit;
     }
     .mode-switch {
       display: grid;
@@ -413,6 +428,11 @@
     @media (max-width: 860px) {
       .header { position: static; }
       .meta { grid-template-columns: 1fr; }
+      .basic-meta { grid-template-areas: none; }
+      .basic-meta .field-date,
+      .basic-meta .field-driver,
+      .basic-meta .field-vehicle,
+      .basic-meta .field-mode { grid-area: auto; }
       .layout { grid-template-columns: 1fr minmax(130px, 1.2fr) 1fr; gap: 8px; }
       .tire { min-height: 58px; }
       .screen-actions .btn { flex-basis: 100%; }
@@ -433,18 +453,24 @@
       <section class="panel">
         <div class="panel-head">基本情報</div>
         <div class="panel-body">
-          <div class="meta">
-            <div class="field">
+          <div class="meta basic-meta">
+            <div class="field field-date">
               <label for="inspectionDate">点検日（カレンダー選択）</label>
               <input id="inspectionDate" type="date">
             </div>
-            <div class="field">
+            <div class="field field-driver">
+              <label for="driverName">乗務員</label>
+              <select id="driverName">
+                <option value="">選択してください</option>
+              </select>
+            </div>
+            <div class="field field-vehicle">
               <label for="vehicleNumber">車両番号</label>
               <select id="vehicleNumber">
                 <option value="">選択してください</option>
               </select>
             </div>
-            <div class="field">
+            <div class="field field-mode">
               <label>車種切替</label>
               <div class="mode-switch">
                 <button id="mode12Btn" class="btn mode-btn active" type="button">大型低床</button>
@@ -487,6 +513,10 @@
         <div class="panel-head">CSVエクスポート</div>
         <div class="panel-body">
           <p id="exportSummary" class="empty"></p>
+          <div class="field">
+            <label for="reportNote">報告事項</label>
+            <textarea id="reportNote" placeholder="報告事項を入力"></textarea>
+          </div>
           <div class="row">
             <button id="exportCsvBtn" class="btn warn send-btn" type="button">専務に送る</button>
             <button id="exportBackBtn" class="btn" type="button">タイヤ配置へ戻る</button>
@@ -558,6 +588,17 @@
           <label>登録済み車両番号</label>
           <div id="vehicleList" class="vehicle-list"></div>
         </div>
+        <div class="field">
+          <label for="newDriverName">乗務員を登録</label>
+          <div class="row">
+            <input id="newDriverName" type="text" placeholder="例: 山田 太郎" autocomplete="off">
+            <button id="addDriverBtn" class="btn primary" type="button">登録</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>登録済み乗務員</label>
+          <div id="driverList" class="vehicle-list"></div>
+        </div>
       </div>
       <div class="modal-foot">
         <button id="closeSettingsBtn" class="btn primary" type="button">閉じる</button>
@@ -573,6 +614,7 @@
       const STORAGE = {
         current: "tire.monthly.current.v1",
         vehicles: "tire.monthly.vehicles.v1",
+        drivers: "tire.monthly.drivers.v1",
         exportDirName: "tire.monthly.export.dirname.v1",
         theme: "tire.monthly.theme.v1"
       };
@@ -624,6 +666,7 @@
         truckScreen: document.getElementById("truckScreen"),
         exportScreen: document.getElementById("exportScreen"),
         inspectionDate: document.getElementById("inspectionDate"),
+        driverName: document.getElementById("driverName"),
         vehicleNumber: document.getElementById("vehicleNumber"),
         mode12Btn: document.getElementById("mode12Btn"),
         mode10Btn: document.getElementById("mode10Btn"),
@@ -639,6 +682,7 @@
         quickResetBtn: document.getElementById("quickResetBtn"),
         openSettingsBtn: document.getElementById("openSettingsBtn"),
         exportSummary: document.getElementById("exportSummary"),
+        reportNote: document.getElementById("reportNote"),
         resetBtn: document.getElementById("resetBtn"),
         inputDialog: document.getElementById("inputDialog"),
         dialogTarget: document.getElementById("dialogTarget"),
@@ -658,6 +702,9 @@
         newVehicleNumber: document.getElementById("newVehicleNumber"),
         addVehicleBtn: document.getElementById("addVehicleBtn"),
         vehicleList: document.getElementById("vehicleList"),
+        newDriverName: document.getElementById("newDriverName"),
+        addDriverBtn: document.getElementById("addDriverBtn"),
+        driverList: document.getElementById("driverList"),
         toast: document.getElementById("toast")
       };
 
@@ -676,7 +723,9 @@
       const defaultCurrent = () => ({
         truckType: TRUCK_TYPES.LOW12,
         inspectionDate: today(),
+        driverName: "",
         vehicleNumber: "",
+        reportNote: "",
         tires: Object.fromEntries(ALL_IDS.map((id) => [id, newTire()])),
         spare: newSpare(),
         updatedAt: new Date().toISOString()
@@ -703,6 +752,8 @@
         ALL_IDS.forEach((id) => {
           curr.tires[id] = { ...newTire(), ...(obj && obj.tires && obj.tires[id] ? obj.tires[id] : {}) };
         });
+        curr.driverName = typeof curr.driverName === "string" ? curr.driverName : "";
+        curr.reportNote = typeof curr.reportNote === "string" ? curr.reportNote : "";
         if (!curr.inspectionDate) curr.inspectionDate = today();
         if (!curr.updatedAt) curr.updatedAt = new Date().toISOString();
         return curr;
@@ -721,6 +772,7 @@
 
       let current = normalizeCurrent(read(STORAGE.current, defaultCurrent()));
       let vehicles = normalizeVehicles(read(STORAGE.vehicles, []));
+      let drivers = normalizeVehicles(read(STORAGE.drivers, []));
       let tireButtons = {};
       let exportDirHandle = null;
       let exportDirName = localStorage.getItem(STORAGE.exportDirName) || "";
@@ -732,6 +784,7 @@
         localStorage.setItem(STORAGE.current, JSON.stringify(current));
       };
       const saveVehicles = () => localStorage.setItem(STORAGE.vehicles, JSON.stringify(vehicles));
+      const saveDrivers = () => localStorage.setItem(STORAGE.drivers, JSON.stringify(drivers));
       const saveExportDirName = (name) => {
         exportDirName = name || "";
         if (exportDirName) localStorage.setItem(STORAGE.exportDirName, exportDirName);
@@ -813,6 +866,10 @@
         vehicles.unshift(current.vehicleNumber);
         saveVehicles();
       }
+      if (current.driverName && !drivers.includes(current.driverName)) {
+        drivers.unshift(current.driverName);
+        saveDrivers();
+      }
 
       const fillCount = (obj, fields) => fields.reduce((sum, f) => sum + (obj[f.key] ? 1 : 0), 0);
       const totalCount = () => getActiveIds(current.truckType).reduce((sum, id) => sum + fillCount(current.tires[id], NORMAL_FIELDS), 0) + fillCount(current.spare, SPARE_FIELDS);
@@ -858,12 +915,30 @@
         el.exportSummary.style.display = "none";
       }
 
+      function renderReportNote() {
+        const note = current.reportNote || "";
+        if (el.reportNote.value !== note) el.reportNote.value = note;
+      }
+
       function renderButtons() {
         getActiveIds(current.truckType).forEach((id) => {
           if (!tireButtons[id]) return;
           tireButtons[id].className = `tire ${tireClass(id)}`.trim();
         });
         el.spareButton.className = `tire ${spareClass()}`.trim();
+      }
+
+      function renderDriverNameSelect() {
+        const selected = current.driverName || "";
+        el.driverName.innerHTML = "";
+        el.driverName.appendChild(new Option("選択してください", ""));
+        drivers.forEach((driver) => {
+          el.driverName.appendChild(new Option(driver, driver));
+        });
+        if (selected && !drivers.includes(selected)) {
+          el.driverName.appendChild(new Option(selected, selected));
+        }
+        el.driverName.value = selected;
       }
 
       function renderVehicleNumberSelect() {
@@ -905,6 +980,32 @@
         });
       }
 
+      function renderDriverList() {
+        el.driverList.innerHTML = "";
+        if (drivers.length === 0) {
+          el.driverList.innerHTML = '<div class="empty">登録済み乗務員はありません。</div>';
+          return;
+        }
+
+        drivers.forEach((driver) => {
+          const row = document.createElement("div");
+          row.className = "vehicle-item";
+
+          const label = document.createElement("span");
+          label.textContent = driver;
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "mini-btn";
+          remove.textContent = "削除";
+          remove.dataset.driver = driver;
+
+          row.appendChild(label);
+          row.appendChild(remove);
+          el.driverList.appendChild(row);
+        });
+      }
+
       function renderSettings() {
         const mode = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
         el.themeMode.value = mode;
@@ -920,10 +1021,12 @@
           el.exportDirText.textContent = "このブラウザでは保存先指定は未対応です（通常ダウンロード）";
         }
         renderVehicleList();
+        renderDriverList();
       }
 
       function renderMeta() {
         el.inspectionDate.value = current.inspectionDate;
+        renderDriverNameSelect();
         renderVehicleNumberSelect();
       }
 
@@ -932,6 +1035,7 @@
         renderSettings();
         renderScreens();
         renderExportSummary();
+        renderReportNote();
         renderTruckTypeButtons();
         renderButtons();
       }
@@ -944,6 +1048,7 @@
 
       function isBasicInfoReady() {
         if (!current.inspectionDate) return false;
+        if (!current.driverName) return false;
         if (!current.vehicleNumber) return false;
         return true;
       }
@@ -1049,13 +1154,13 @@
         getActiveIds(d.truckType).forEach((id) => {
           const t = d.tires[id];
           rows.push([
-            kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, "通常", circle(id, d.truckType),
-            t.maker, t.type, t.groove, t.wear, t.damage, t.pressure, "", entry.completion
+            kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, d.driverName, "通常", circle(id, d.truckType),
+            t.maker, t.type, t.groove, t.wear, t.damage, t.pressure, "", d.reportNote, entry.completion
           ]);
         });
         rows.push([
-          kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, "スペア", "スペア",
-          d.spare.maker, d.spare.type, "", "", "", "", d.spare.condition, entry.completion
+          kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, d.driverName, "スペア", "スペア",
+          d.spare.maker, d.spare.type, "", "", "", "", d.spare.condition, d.reportNote, entry.completion
         ]);
         return rows;
       }
@@ -1118,7 +1223,7 @@
 
       async function exportCsv() {
         const rows = [[
-          "データ種別", "保存日時", "点検日", "車両番号", "区分", "タイヤ番号", "メーカー", "種類", "溝", "偏摩耗", "キズ", "空気圧", "状態", "完了率(%)"
+          "データ種別", "保存日時", "点検日", "車両番号", "乗務員", "区分", "タイヤ番号", "メーカー", "種類", "溝", "偏摩耗", "キズ", "空気圧", "状態", "報告事項", "完了率(%)"
         ]];
         const currentEntry = { ...snapshot(), kind: "現在入力" };
         rows.push(...rowsFor(currentEntry, currentEntry.kind));
@@ -1151,6 +1256,7 @@
         closeDialog();
         current = defaultCurrent();
         current.truckType = truckType;
+        if (drivers.length > 0) current.driverName = drivers[0];
         if (vehicles.length > 0) current.vehicleNumber = vehicles[0];
         saveCurrent();
         buildTires();
@@ -1232,6 +1338,48 @@
         showToast("車両番号を削除しました");
       }
 
+      function addDriverName() {
+        const value = String(el.newDriverName.value || "").trim();
+        if (!value) {
+          showToast("乗務員を入力してください");
+          return;
+        }
+        if (drivers.includes(value)) {
+          showToast("同じ乗務員は登録済みです");
+          return;
+        }
+
+        drivers.push(value);
+        drivers.sort((a, b) => a.localeCompare(b, "ja"));
+        saveDrivers();
+
+        if (!current.driverName) {
+          current.driverName = value;
+          saveCurrent();
+        }
+
+        el.newDriverName.value = "";
+        renderAll();
+        showToast("乗務員を登録しました");
+      }
+
+      function removeDriverName(value) {
+        const index = drivers.indexOf(value);
+        if (index < 0) return;
+        if (!window.confirm(`「${value}」を削除しますか？`)) return;
+
+        drivers.splice(index, 1);
+        saveDrivers();
+
+        if (current.driverName === value) {
+          current.driverName = drivers[0] || "";
+          saveCurrent();
+        }
+
+        renderAll();
+        showToast("乗務員を削除しました");
+      }
+
       function buildTires() {
         const layout = getLayout(current.truckType);
         const rowCount = layout.axes.length;
@@ -1281,6 +1429,11 @@
           saveCurrent();
           renderAll();
         });
+        el.driverName.addEventListener("change", (ev) => {
+          current.driverName = ev.target.value;
+          saveCurrent();
+          renderAll();
+        });
         el.vehicleNumber.addEventListener("change", (ev) => {
           current.vehicleNumber = ev.target.value;
           saveCurrent();
@@ -1305,6 +1458,10 @@
         });
         el.exportBackBtn.addEventListener("click", () => setFlowScreen(FLOW_SCREENS.TRUCK));
         el.spareButton.addEventListener("click", () => openDialog("spare"));
+        el.reportNote.addEventListener("input", (ev) => {
+          current.reportNote = ev.target.value;
+          saveCurrent();
+        });
         el.exportCsvBtn.addEventListener("click", () => { void exportCsv(); });
         el.quickResetBtn.addEventListener("click", resetCurrent);
         el.resetBtn.addEventListener("click", resetCurrent);
@@ -1319,12 +1476,25 @@
           ev.preventDefault();
           addVehicleNumber();
         });
+        el.addDriverBtn.addEventListener("click", addDriverName);
+        el.newDriverName.addEventListener("keydown", (ev) => {
+          if (ev.key !== "Enter") return;
+          ev.preventDefault();
+          addDriverName();
+        });
         el.vehicleList.addEventListener("click", (ev) => {
           const target = ev.target;
           if (!(target instanceof HTMLButtonElement)) return;
           const vehicle = target.dataset.vehicle;
           if (!vehicle) return;
           removeVehicleNumber(vehicle);
+        });
+        el.driverList.addEventListener("click", (ev) => {
+          const target = ev.target;
+          if (!(target instanceof HTMLButtonElement)) return;
+          const driver = target.dataset.driver;
+          if (!driver) return;
+          removeDriverName(driver);
         });
         el.dialogCloseBtn.addEventListener("click", closeDialog);
         el.closeStepBtn.addEventListener("click", closeDialog);
@@ -1350,6 +1520,7 @@
       function init() {
         initTheme();
         if (!current.inspectionDate) current.inspectionDate = today();
+        if (!current.driverName && drivers.length > 0) current.driverName = drivers[0];
         if (!current.vehicleNumber && vehicles.length > 0) current.vehicleNumber = vehicles[0];
         currentScreen = FLOW_SCREENS.BASIC;
         buildTires();
