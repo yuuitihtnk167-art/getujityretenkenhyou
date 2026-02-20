@@ -233,6 +233,22 @@
     .screen-actions .btn {
       flex: 1 1 220px;
     }
+    .truck-actions {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .truck-actions .btn {
+      width: 100%;
+      min-height: 68px;
+      font-size: 1.02rem;
+    }
+    .send-btn {
+      flex: 1 1 100%;
+      width: 100%;
+      min-height: 68px;
+      font-size: 1.05rem;
+    }
     .fixed-settings {
       position: fixed;
       left: 0;
@@ -429,12 +445,12 @@
             </div>
             <button id="spareButton" class="tire" type="button">スペア</button>
           </div>
+          <div class="truck-actions">
+            <button id="truckToExportBtn" class="btn primary" type="button">点検完了</button>
+            <button id="truckBackBtn" class="btn" type="button">基本情報へ戻る</button>
+          </div>
         </div>
       </section>
-      <div class="row screen-actions">
-        <button id="truckBackBtn" class="btn" type="button">基本情報へ戻る</button>
-        <button id="truckToExportBtn" class="btn primary" type="button">点検完了してCSVへ</button>
-      </div>
     </section>
 
     <section id="exportScreen" class="screen">
@@ -443,7 +459,7 @@
         <div class="panel-body">
           <p id="exportSummary" class="empty"></p>
           <div class="row">
-            <button id="exportCsvBtn" class="btn warn" type="button">CSVエクスポート</button>
+            <button id="exportCsvBtn" class="btn warn send-btn" type="button">専務に送る</button>
             <button id="exportBackBtn" class="btn" type="button">タイヤ配置へ戻る</button>
             <button id="resetBtn" class="btn danger" type="button">新しい点検を開始</button>
           </div>
