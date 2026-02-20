@@ -530,7 +530,6 @@
     <div class="modal">
       <div class="modal-head">
         <h3>設定</h3>
-        <button id="settingsCloseXBtn" class="btn" type="button" style="min-height:auto;padding:6px 10px;">閉じる</button>
       </div>
       <div class="modal-body">
         <div class="field">
@@ -651,7 +650,6 @@
         prevStepBtn: document.getElementById("prevStepBtn"),
         closeStepBtn: document.getElementById("closeStepBtn"),
         settingsDialog: document.getElementById("settingsDialog"),
-        settingsCloseXBtn: document.getElementById("settingsCloseXBtn"),
         closeSettingsBtn: document.getElementById("closeSettingsBtn"),
         themeMode: document.getElementById("themeMode"),
         selectExportDirBtn: document.getElementById("selectExportDirBtn"),
@@ -1311,7 +1309,6 @@
         el.quickResetBtn.addEventListener("click", resetCurrent);
         el.resetBtn.addEventListener("click", resetCurrent);
         el.openSettingsBtn.addEventListener("click", openSettingsDialog);
-        el.settingsCloseXBtn.addEventListener("click", closeSettingsDialog);
         el.closeSettingsBtn.addEventListener("click", closeSettingsDialog);
         el.themeMode.addEventListener("change", (ev) => setTheme(ev.target.value));
         el.selectExportDirBtn.addEventListener("click", () => { void selectExportDirectory(); });
