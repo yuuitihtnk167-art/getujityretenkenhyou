@@ -1148,19 +1148,36 @@
         return s;
       }
 
-      function rowsFor(entry, kind) {
+      function rowsFor(entry) {
         const d = entry.data;
         const rows = [];
+        let sharedWritten = false;
+        let noteWritten = false;
+        const shared = () => {
+          if (sharedWritten) return ["", "", "", ""];
+          sharedWritten = true;
+          return [entry.savedAt, d.inspectionDate, d.vehicleNumber, d.driverName];
+        };
+        const report = () => {
+          if (noteWritten) return "";
+          noteWritten = true;
+          return d.reportNote;
+        };
+
         getActiveIds(d.truckType).forEach((id) => {
           const t = d.tires[id];
           rows.push([
-            kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, d.driverName, "通常", circle(id, d.truckType),
-            t.maker, t.type, t.groove, t.wear, t.damage, t.pressure, "", d.reportNote, entry.completion
+            ...shared(),
+            circle(id, d.truckType),
+            t.maker, t.type, t.groove, t.wear, t.damage, t.pressure, "",
+            report()
           ]);
         });
         rows.push([
-          kind, entry.savedAt, d.inspectionDate, d.vehicleNumber, d.driverName, "スペア", "スペア",
-          d.spare.maker, d.spare.type, "", "", "", "", d.spare.condition, d.reportNote, entry.completion
+          ...shared(),
+          "スペア",
+          d.spare.maker, d.spare.type, "", "", "", "", d.spare.condition,
+          report()
         ]);
         return rows;
       }
@@ -1223,10 +1240,10 @@
 
       async function exportCsv() {
         const rows = [[
-          "データ種別", "保存日時", "点検日", "車両番号", "乗務員", "区分", "タイヤ番号", "メーカー", "種類", "溝", "偏摩耗", "キズ", "空気圧", "状態", "報告事項", "完了率(%)"
+          "保存日時", "点検日", "車両番号", "乗務員", "タイヤ番号", "メーカー", "種類", "溝", "偏摩耗", "キズ", "空気圧", "状態", "報告事項"
         ]];
-        const currentEntry = { ...snapshot(), kind: "現在入力" };
-        rows.push(...rowsFor(currentEntry, currentEntry.kind));
+        const currentEntry = snapshot();
+        rows.push(...rowsFor(currentEntry));
 
         const csv = rows.map((r) => r.map(esc).join(",")).join("\r\n");
         const stamp = new Date().toISOString().replace(/[:.]/g, "-");
