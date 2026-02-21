@@ -14,26 +14,27 @@
   <link rel="apple-touch-icon" href="icons/tire-192.png">
   <style>
     :root {
-      --bg: #000000;
-      --bg2: #0b121b;
-      --surface: #111a25;
-      --surface2: #172234;
-      --text: #d5e1f2;
-      --text-strong: #e2ecfb;
-      --muted: #8ea4bf;
-      --line: #2b3f57;
-      --accent: #5b9bd1;
-      --ok: #4ebd8a;
-      --warn: #d39a49;
-      --pending: #5f7288;
-      --danger: #d06f6f;
-      --dock-bg: #000000;
-      --dock-surface: #141f2f;
-      --dock-line: #2c4058;
+      --bg: #f4f8fd;
+      --bg2: #d9e8f8;
+      --surface: #ffffff;
+      --surface2: #eef4fb;
+      --text: #0f1b2a;
+      --text-strong: #08121d;
+      --muted: #4c637d;
+      --line: #b4c8df;
+      --accent: #2f78bf;
+      --ok: #2f9d69;
+      --warn: #b7792e;
+      --pending: #6f879f;
+      --danger: #b24b4b;
+      --dock-bg: #dbe7f5;
+      --dock-surface: #edf4fc;
+      --dock-line: #b8cade;
       --tap: 56px;
       --radius: 12px;
-      --shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+      --shadow: 0 10px 24px rgba(20, 44, 72, 0.18);
     }
+    html[data-theme="dark"],
     body[data-theme="dark"] {
       --bg: #000000;
       --bg2: #0b121b;
@@ -386,18 +387,6 @@
       flex: 1 1 140px;
       min-width: 0;
     }
-    .finish-image-preview {
-      display: none;
-      width: 100%;
-      max-height: 60vh;
-      height: auto;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #000;
-    }
-    .finish-image-preview.show {
-      display: block;
-    }
     .mini-btn {
       min-height: 42px;
       padding: 8px 12px;
@@ -588,30 +577,6 @@
       font-size: 2.25rem;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    .finish-overlay {
-      position: fixed;
-      inset: 0;
-      opacity: 0;
-      pointer-events: none;
-      background: #000;
-      z-index: 2000;
-      transition: opacity .9s ease;
-    }
-    .finish-overlay.show {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .finish-overlay img {
-      width: 100vw;
-      height: 100dvh;
-      object-fit: cover;
-      display: block;
-      opacity: 1;
-      transition: opacity 3s ease;
-    }
-    .finish-overlay img.fade-out {
-      opacity: 0;
-    }
     @media (max-width: 860px) {
       .header { position: static; }
       .meta { grid-template-columns: 1fr; }
@@ -720,20 +685,6 @@
             </select>
           </div>
           <div class="field">
-            <label for="finishImageSelect">終了画像</label>
-            <select id="finishImageSelect" class="sel"></select>
-            <div id="finishImageText" class="muted">選択中: 既定画像（アプリ内）</div>
-            <img id="finishImagePreview" class="finish-image-preview" alt="終了画像サンプル">
-          </div>
-          <div class="field">
-            <label>終了画像フォルダー</label>
-            <div class="row finish-picker-row">
-              <button id="selectFinishImageDirBtn" class="btn" type="button">画像フォルダーを選択</button>
-              <button id="clearFinishImageDirBtn" class="btn danger" type="button">指定を解除</button>
-            </div>
-            <div id="finishImageDirText" class="muted">終了画像フォルダー: 未指定</div>
-          </div>
-          <div class="field">
             <label>CSV保存先フォルダー</label>
             <div class="row finish-picker-row">
               <button id="selectExportDirBtn" class="btn" type="button">保存先を選択</button>
@@ -838,9 +789,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <div id="finishOverlay" class="finish-overlay" aria-hidden="true">
-    <img id="finishImage" alt="送信完了画像">
-  </div>
   <script>
     (() => {
       "use strict";
@@ -852,8 +800,6 @@
         drivers: "tire.monthly.drivers.v1",
         truckTypes: "tire.monthly.trucktypes.v1",
         exportDirName: "tire.monthly.export.dirname.v1",
-        finishImageDirName: "tire.monthly.finish.dir.name.v1",
-        finishImageName: "tire.monthly.finish.image.name.v1",
         theme: "tire.monthly.theme.v1"
       };
 
@@ -871,11 +817,6 @@
         EXPORT: "export",
         SETTINGS: "settings"
       };
-      const DEFAULT_FINISH_IMAGE_PATH = "icons/tire-512.png";
-      const LEGACY_FINISH_IMAGE_PATH_KEY = "tire.monthly.finish.image.v1";
-      const FINISH_IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|avif|svg)$/i;
-      const FINISH_SCREEN_HOLD_MS = 2200;
-      const FINISH_SCREEN_FADE_MS = 5000;
 
       const DISPLAY_MAP_12 = ["①", "⑦", "②", "⑧", "③", "⑨", "④", "⑩", "⑤", "⑪", "⑥", "⑫"];
       const DISPLAY_MAP_10 = ["①", "⑥", "②", "⑦", "③", "⑧", "④", "⑨", "⑤", "⑩"];
@@ -949,12 +890,6 @@
         sendFixBtn: document.getElementById("sendFixBtn"),
         sendSubmitBtn: document.getElementById("sendSubmitBtn"),
         themeMode: document.getElementById("themeMode"),
-        finishImageSelect: document.getElementById("finishImageSelect"),
-        finishImageText: document.getElementById("finishImageText"),
-        finishImagePreview: document.getElementById("finishImagePreview"),
-        selectFinishImageDirBtn: document.getElementById("selectFinishImageDirBtn"),
-        clearFinishImageDirBtn: document.getElementById("clearFinishImageDirBtn"),
-        finishImageDirText: document.getElementById("finishImageDirText"),
         selectExportDirBtn: document.getElementById("selectExportDirBtn"),
         clearExportDirBtn: document.getElementById("clearExportDirBtn"),
         exportDirText: document.getElementById("exportDirText"),
@@ -967,9 +902,7 @@
         newTruckType: document.getElementById("newTruckType"),
         addTruckTypeBtn: document.getElementById("addTruckTypeBtn"),
         truckTypeList: document.getElementById("truckTypeList"),
-        toast: document.getElementById("toast"),
-        finishOverlay: document.getElementById("finishOverlay"),
-        finishImage: document.getElementById("finishImage")
+        toast: document.getElementById("toast")
       };
 
       const today = () => {
@@ -1070,13 +1003,6 @@
       let dialog = { target: null, fields: [], step: 0 };
       let currentScreen = FLOW_SCREENS.BASIC;
       let screenBeforeSettings = FLOW_SCREENS.BASIC;
-      let finishImageDirHandle = null;
-      let finishImageDirName = localStorage.getItem(STORAGE.finishImageDirName) || "";
-      let finishImageName = "";
-      let finishImageOptions = [];
-      let finishImageOptionsLoaded = true;
-      let finishImageObjectUrl = "";
-      let finishSequenceRunning = false;
 
       const saveCurrent = () => {
         current.updatedAt = new Date().toISOString();
@@ -1097,61 +1023,6 @@
         if (exportDirName) localStorage.setItem(STORAGE.exportDirName, exportDirName);
         else localStorage.removeItem(STORAGE.exportDirName);
       };
-      const saveFinishImageDirName = (name) => {
-        finishImageDirName = name || "";
-        if (finishImageDirName) localStorage.setItem(STORAGE.finishImageDirName, finishImageDirName);
-        else localStorage.removeItem(STORAGE.finishImageDirName);
-      };
-      const decodeUriSafe = (value) => {
-        try {
-          return decodeURI(value);
-        } catch {
-          return value;
-        }
-      };
-      const normalizeFinishImageName = (value) => {
-        const raw = decodeUriSafe(String(value ?? "").trim().replace(/\\/g, "/"));
-        if (!raw) return "";
-        if (/^(data:|blob:|https?:)/i.test(raw)) return "";
-        const name = raw.split("/").pop() || "";
-        if (!name) return "";
-        return FINISH_IMAGE_EXT_RE.test(name) ? name : "";
-      };
-      const legacyFinishImagePath = localStorage.getItem(LEGACY_FINISH_IMAGE_PATH_KEY) || "";
-      finishImageName = normalizeFinishImageName(localStorage.getItem(STORAGE.finishImageName) || legacyFinishImagePath);
-
-      const saveFinishImageName = (name) => {
-        finishImageName = normalizeFinishImageName(name);
-        if (finishImageName) localStorage.setItem(STORAGE.finishImageName, finishImageName);
-        else localStorage.removeItem(STORAGE.finishImageName);
-      };
-      const clearFinishImageObjectUrl = () => {
-        if (!finishImageObjectUrl) return;
-        URL.revokeObjectURL(finishImageObjectUrl);
-        finishImageObjectUrl = "";
-      };
-      function toggleFinishImagePreview(show) {
-        const visible = Boolean(show && finishImageName);
-        el.finishImagePreview.classList.toggle("show", visible);
-      }
-      const finishImageLabel = (name) => name || "既定画像（アプリ内）";
-      async function applyFinishImage() {
-        clearFinishImageObjectUrl();
-        if (finishImageDirHandle && finishImageName) {
-          try {
-            const fileHandle = await finishImageDirHandle.getFileHandle(finishImageName);
-            const file = await fileHandle.getFile();
-            finishImageObjectUrl = URL.createObjectURL(file);
-            el.finishImage.src = finishImageObjectUrl;
-            el.finishImagePreview.src = finishImageObjectUrl;
-            return;
-          } catch (error) {
-            console.warn("Finish image read failed:", error);
-          }
-        }
-        el.finishImage.src = DEFAULT_FINISH_IMAGE_PATH;
-        if (!finishImageName) el.finishImagePreview.removeAttribute("src");
-      }
 
       const canPickDirectory = () => typeof window.showDirectoryPicker === "function";
 
@@ -1221,92 +1092,6 @@
           renderSettings();
         } catch (error) {
           console.warn("Export directory restore failed:", error);
-        }
-      }
-
-      async function ensureDirReadPermission(handle, request = false) {
-        const options = { mode: "read" };
-        if ((await handle.queryPermission(options)) === "granted") return true;
-        if (!request) return false;
-        return (await handle.requestPermission(options)) === "granted";
-      }
-
-      async function listFinishImageNames(handle) {
-        const names = [];
-        for await (const [name, entry] of handle.entries()) {
-          if (entry.kind !== "file") continue;
-          if (!FINISH_IMAGE_EXT_RE.test(name)) continue;
-          names.push(name);
-        }
-        names.sort((a, b) => a.localeCompare(b, "ja"));
-        return names;
-      }
-
-      async function refreshFinishImageOptions(requestPermission = false) {
-        if (!finishImageDirHandle) {
-          finishImageOptions = [];
-          finishImageOptionsLoaded = true;
-          renderSettings();
-          await applyFinishImage();
-          return;
-        }
-        try {
-          const granted = await ensureDirReadPermission(finishImageDirHandle, requestPermission);
-          if (!granted) {
-            finishImageOptions = [];
-            saveFinishImageName("");
-            finishImageOptionsLoaded = true;
-            renderSettings();
-            await applyFinishImage();
-            return;
-          }
-          const names = await listFinishImageNames(finishImageDirHandle);
-          finishImageOptions = names;
-          if (finishImageName && !finishImageOptions.includes(finishImageName)) saveFinishImageName("");
-          if (!finishImageName && finishImageOptions.length > 0) saveFinishImageName(finishImageOptions[0]);
-          finishImageOptionsLoaded = true;
-          renderSettings();
-          await applyFinishImage();
-        } catch (error) {
-          console.warn("Finish image list load failed:", error);
-          finishImageOptions = [];
-          finishImageOptionsLoaded = true;
-          renderSettings();
-          await applyFinishImage();
-        }
-      }
-
-      async function setFinishImageName(name, showPreview = false) {
-        saveFinishImageName(name);
-        await applyFinishImage();
-        toggleFinishImagePreview(showPreview);
-      }
-
-      async function loadFinishImageDirHandle() {
-        if (!canPickDirectory()) return;
-        try {
-          const handle = await idbGet("finishImageDirHandle");
-          if (!handle) {
-            saveFinishImageDirName("");
-            saveFinishImageName("");
-            finishImageOptionsLoaded = true;
-            renderSettings();
-            await applyFinishImage();
-            return;
-          }
-          finishImageDirHandle = handle;
-          if (!finishImageDirName && handle.name) saveFinishImageDirName(handle.name);
-          finishImageOptionsLoaded = false;
-          renderSettings();
-          await refreshFinishImageOptions();
-        } catch (error) {
-          console.warn("Finish image directory restore failed:", error);
-          finishImageDirHandle = null;
-          saveFinishImageDirName("");
-          finishImageOptions = [];
-          finishImageOptionsLoaded = true;
-          renderSettings();
-          await applyFinishImage();
         }
       }
 
@@ -1514,44 +1299,16 @@
       function renderSettings() {
         const mode = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
         el.themeMode.value = mode;
-        toggleFinishImagePreview(false);
-        const finishOptions = finishImageOptions.slice();
-        el.finishImageSelect.innerHTML = "";
-        el.finishImageSelect.appendChild(new Option("既定画像（アプリ内）", ""));
-        finishOptions.forEach((name) => {
-          el.finishImageSelect.appendChild(new Option(finishImageLabel(name), name));
-        });
-        el.finishImageSelect.value = finishImageName;
-        if (el.finishImageSelect.value !== finishImageName) el.finishImageSelect.value = "";
-        const selectedLabel = finishImageLabel(finishImageName);
         if (canPickDirectory()) {
-          el.selectFinishImageDirBtn.disabled = false;
-          el.clearFinishImageDirBtn.disabled = !finishImageDirHandle;
-          el.finishImageDirText.textContent = finishImageDirName
-            ? `終了画像フォルダー: ${finishImageDirName}`
-            : "終了画像フォルダー: 未指定";
-          if (!finishImageDirHandle) {
-            el.finishImageText.textContent = "選択中: 既定画像（アプリ内）";
-          } else if (!finishImageOptionsLoaded) {
-            el.finishImageText.textContent = "選択中: 読み込み中";
-          } else if (finishOptions.length === 0) {
-            el.finishImageText.textContent = "選択中: 既定画像（フォルダー内に画像なし / 権限未許可）";
-          } else {
-            el.finishImageText.textContent = `選択中: ${selectedLabel}`;
-          }
           el.selectExportDirBtn.disabled = false;
           el.clearExportDirBtn.disabled = !exportDirHandle;
           el.exportDirText.textContent = exportDirName
             ? `CSV保存先: ${exportDirName}`
             : "CSV保存先: 未指定（通常ダウンロード）";
         } else {
-          el.selectFinishImageDirBtn.disabled = true;
-          el.clearFinishImageDirBtn.disabled = true;
-          el.finishImageDirText.textContent = "このブラウザでは終了画像フォルダー指定は未対応です";
           el.selectExportDirBtn.disabled = true;
           el.clearExportDirBtn.disabled = true;
           el.exportDirText.textContent = "このブラウザではCSV保存先指定は未対応です";
-          el.finishImageText.textContent = `選択中: ${selectedLabel}`;
         }
         renderVehicleList();
         renderDriverList();
@@ -1642,7 +1399,6 @@
         screenBeforeSettings = currentScreen;
         renderSettings();
         setFlowScreen(FLOW_SCREENS.SETTINGS);
-        void refreshFinishImageOptions();
       }
 
       function closeSettingsDialog() {
@@ -1730,28 +1486,6 @@
         clearTimeout(showToast.tid);
         showToast.tid = setTimeout(() => el.toast.classList.remove("show"), 1800);
       }
-      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-      async function showFinishScreen() {
-        if (finishSequenceRunning) return;
-        finishSequenceRunning = true;
-        clearTimeout(showToast.tid);
-        el.toast.classList.remove("show");
-        el.finishImage.classList.remove("fade-out");
-        el.finishOverlay.classList.add("show");
-        el.finishOverlay.setAttribute("aria-hidden", "false");
-        await wait(FINISH_SCREEN_HOLD_MS);
-        el.finishImage.classList.add("fade-out");
-        await wait(FINISH_SCREEN_FADE_MS);
-        el.finishOverlay.setAttribute("aria-hidden", "true");
-        try {
-          window.close();
-        } catch {
-          // noop
-        }
-        await wait(120);
-        if (!document.hidden) window.location.replace("about:blank");
-      }
 
       function snapshot() {
         return {
@@ -1806,52 +1540,6 @@
           report()
         ]);
         return rows;
-      }
-
-      async function selectFinishImageDirectory() {
-        if (!canPickDirectory()) {
-          showToast("このブラウザでは終了画像フォルダー指定に対応していません");
-          return;
-        }
-        try {
-          const handle = await window.showDirectoryPicker({ mode: "read" });
-          const granted = await ensureDirReadPermission(handle, true);
-          if (!granted) {
-            showToast("終了画像フォルダーへの読み取り許可が必要です");
-            return;
-          }
-          finishImageDirHandle = handle;
-          saveFinishImageDirName(handle.name || "選択済みフォルダー");
-          try {
-            await idbSet("finishImageDirHandle", handle);
-          } catch (error) {
-            console.warn("Finish image directory save failed:", error);
-          }
-          finishImageOptionsLoaded = false;
-          renderSettings();
-          await refreshFinishImageOptions();
-          showToast("終了画像フォルダーを設定しました");
-        } catch (error) {
-          if (error && error.name === "AbortError") return;
-          console.warn("Finish image directory picker error:", error);
-          showToast("終了画像フォルダーの設定に失敗しました");
-        }
-      }
-
-      async function clearFinishImageDirectory() {
-        finishImageDirHandle = null;
-        saveFinishImageDirName("");
-        saveFinishImageName("");
-        finishImageOptions = [];
-        finishImageOptionsLoaded = true;
-        try {
-          await idbDelete("finishImageDirHandle");
-        } catch (error) {
-          console.warn("Finish image directory clear failed:", error);
-        }
-        renderSettings();
-        await applyFinishImage();
-        showToast("終了画像フォルダーの指定を解除しました");
       }
 
       async function selectExportDirectory() {
@@ -1909,9 +1597,45 @@
           return false;
         }
       }
+      async function shareCsvFile(fileName, content) {
+        try {
+          if (!navigator.share) return false;
+          const file = new File([content], fileName, { type: "text/csv;charset=utf-8;" });
+          if (navigator.canShare && !navigator.canShare({ files: [file] })) return false;
+          await navigator.share({
+            title: fileName,
+            text: "月次タイヤ点検CSV",
+            files: [file]
+          });
+          return true;
+        } catch (error) {
+          if (error && error.name === "AbortError") return true;
+          console.warn("Share CSV failed:", error);
+          return false;
+        }
+      }
+      function downloadCsv(fileName, content) {
+        const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      async function closeApp() {
+        try {
+          window.close();
+        } catch {
+          // noop
+        }
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        if (!document.hidden) window.location.replace("about:blank");
+      }
 
       async function exportCsv() {
-        if (finishSequenceRunning) return;
         const rows = [[
           "保存日時", "点検日", "車両番号", "乗務員", "タイヤ番号", "メーカー", "種類", "溝", "偏摩耗", "キズ", "空気圧", "状態", "報告事項"
         ]];
@@ -1929,23 +1653,17 @@
           previous = previousSnapshot;
           savePrevious();
           resetCurrent({ confirm: false, toast: false });
-          await showFinishScreen();
+          await closeApp();
           return;
         }
 
-        const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        if (!(await shareCsvFile(fileName, content))) {
+          downloadCsv(fileName, content);
+        }
         previous = previousSnapshot;
         savePrevious();
         resetCurrent({ confirm: false, toast: false });
-        await showFinishScreen();
+        await closeApp();
       }
 
       function resetCurrent(options = {}) {
@@ -1967,6 +1685,7 @@
       }
 
       function applyTheme(theme) {
+        document.documentElement.setAttribute("data-theme", theme);
         document.body.setAttribute("data-theme", theme);
         if (el.themeMode) el.themeMode.value = theme === "dark" ? "dark" : "light";
       }
@@ -2256,16 +1975,6 @@
         el.openSettingsBtn.addEventListener("click", openSettingsDialog);
         el.closeSettingsBtn.addEventListener("click", closeSettingsDialog);
         el.themeMode.addEventListener("change", (ev) => setTheme(ev.target.value));
-        el.finishImageSelect.addEventListener("change", (ev) => {
-          void (async () => {
-            await setFinishImageName(ev.target.value, false);
-            renderSettings();
-            await applyFinishImage();
-            toggleFinishImagePreview(Boolean(ev.target.value));
-          })();
-        });
-        el.selectFinishImageDirBtn.addEventListener("click", () => { void selectFinishImageDirectory(); });
-        el.clearFinishImageDirBtn.addEventListener("click", () => { void clearFinishImageDirectory(); });
         el.selectExportDirBtn.addEventListener("click", () => { void selectExportDirectory(); });
         el.clearExportDirBtn.addEventListener("click", () => { void clearExportDirectory(); });
         el.addVehicleBtn.addEventListener("click", addVehicleNumber);
@@ -2321,15 +2030,6 @@
           }
         });
         el.stepSelect.addEventListener("change", (ev) => applyStep(ev.target.value));
-        el.finishImage.addEventListener("error", () => {
-          clearFinishImageObjectUrl();
-          if (el.finishImage.src.endsWith(DEFAULT_FINISH_IMAGE_PATH)) return;
-          el.finishImage.src = DEFAULT_FINISH_IMAGE_PATH;
-        });
-        el.finishImagePreview.addEventListener("error", () => {
-          toggleFinishImagePreview(false);
-        });
-
       }
 
       async function registerSW() {
@@ -2348,13 +2048,11 @@
         if (!current.vehicleNumber && vehicles.length > 0) current.vehicleNumber = vehicles[0];
         if (!truckTypes.includes(current.truckType)) current.truckType = truckTypes[0] || TRUCK_TYPES.LOW12;
         currentScreen = FLOW_SCREENS.BASIC;
-        void applyFinishImage();
         buildTires();
         bindEvents();
         saveCurrent();
         renderAll();
         void loadExportDirHandle();
-        void loadFinishImageDirHandle();
         registerSW();
       }
 
