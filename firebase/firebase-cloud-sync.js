@@ -13,7 +13,7 @@
     firebase: null,
     auth: null,
     db: null,
-    docRef: null,
+    uid: "anon",
     deviceId: null,
     readyPromise: null,
     flushTimer: null,
@@ -134,17 +134,87 @@
     return window.firebase;
   }
 
-  function buildDocId(uid) {
+  function currentMonthKey() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+  }
+
+  function parseMonthFromDateText(value) {
+    const match = /^(\d{4})-(\d{2})-\d{2}$/.exec(String(value || "").trim());
+    if (!match) return "";
+    return `${match[1]}-${match[2]}`;
+  }
+
+  function normalizeText(value) {
+    return String(value ?? "").trim();
+  }
+
+  function hashText(value) {
+    // FNV-1a 32-bit hash (deterministic, compact id key)
+    let hash = 0x811c9dc5;
+    const text = String(value ?? "");
+    for (let i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(16).padStart(8, "0");
+  }
+
+  function extractInspectionMonth(entry) {
+    const inspectionDate = entry
+      && entry.payload
+      && entry.payload.current
+      && entry.payload.current.inspectionDate;
+    return parseMonthFromDateText(inspectionDate) || currentMonthKey();
+  }
+
+  function extractBasicInfo(entry) {
+    const current = entry && entry.payload && entry.payload.current ? entry.payload.current : {};
+    return {
+      inspectionDate: normalizeText(current.inspectionDate),
+      driverName: normalizeText(current.driverName),
+      vehicleNumber: normalizeText(current.vehicleNumber),
+      truckType: normalizeText(current.truckType)
+    };
+  }
+
+  function buildBasicSignature(entry) {
+    const basic = extractBasicInfo(entry);
+    const raw = [basic.inspectionDate, basic.driverName, basic.vehicleNumber, basic.truckType].join("|");
+    return hashText(raw);
+  }
+
+  function buildDocId(uid, monthKey, basicSignature, deviceId) {
     const prefix = sanitizeId(state.options.documentPrefix, "monthly_tire");
     const company = sanitizeId(state.options.companyCode, "company");
     const user = sanitizeId(uid, "anon");
-    const device = sanitizeId(state.deviceId, "device");
-    return `${prefix}_${company}_${user}_${device}`.slice(0, 200);
+    const device = sanitizeId(deviceId || state.deviceId, "device");
+    const month = sanitizeId(monthKey, currentMonthKey());
+    const basic = sanitizeId(basicSignature, "basic");
+    return `${prefix}_${company}_${user}_${device}_${month}_${basic}`.slice(0, 200);
+  }
+
+  function getDocInfoForEntry(entry) {
+    const month = extractInspectionMonth(entry);
+    const uid = state.uid || "anon";
+    const deviceId = state.deviceId || getOrCreateDeviceId();
+    const basicInfo = extractBasicInfo(entry);
+    const basicSignature = buildBasicSignature(entry);
+    const docId = buildDocId(uid, month, basicSignature, deviceId);
+    return { month, uid, deviceId, basicInfo, basicSignature, docId };
+  }
+
+  function getDocRefForEntry(entry) {
+    if (!state.db) return null;
+    const docInfo = getDocInfoForEntry(entry);
+    return state.db.collection(state.options.collection).doc(docInfo.docId);
   }
 
   async function ensureFirebaseReady() {
     if (!state.initialized || !state.options || !state.options.enabled) return false;
-    if (state.docRef) return true;
+    if (state.db && state.deviceId) return true;
     if (state.readyPromise) return state.readyPromise;
 
     state.readyPromise = (async () => {
@@ -173,9 +243,7 @@
         }
       }
 
-      const uid = (state.auth.currentUser && state.auth.currentUser.uid) || "anon";
-      const docId = buildDocId(uid);
-      state.docRef = state.db.collection(state.options.collection).doc(docId);
+      state.uid = (state.auth.currentUser && state.auth.currentUser.uid) || "anon";
       log("Firebase cloud sync enabled");
       return true;
     })().finally(() => {
@@ -186,9 +254,15 @@
   }
 
   function toDocData(entry) {
+    const inspectionMonth = extractInspectionMonth(entry);
+    const basicInfo = extractBasicInfo(entry);
+    const basicSignature = buildBasicSignature(entry);
     return {
       companyCode: state.options.companyCode,
       deviceId: state.deviceId,
+      inspectionMonth,
+      basicInfo,
+      basicSignature,
       lastSource: entry.source,
       clientUpdatedAt: entry.clientUpdatedAt,
       updatedAt: state.firebase.firestore.FieldValue.serverTimestamp(),
@@ -198,12 +272,14 @@
 
   async function writeEntry(entry) {
     const ready = await ensureFirebaseReady();
-    if (!ready || !state.docRef) {
+    const docRef = getDocRefForEntry(entry);
+    if (!ready || !docRef) {
       pushPending(entry);
       return false;
     }
     try {
-      await state.docRef.set(toDocData(entry), { merge: true });
+      log("Saving document", getDocInfoForEntry(entry));
+      await docRef.set(toDocData(entry), { merge: true });
       return true;
     } catch (error) {
       warn("Firestore write failed, queued locally for retry", error);
@@ -217,13 +293,18 @@
     state.flushing = true;
     try {
       const ready = await ensureFirebaseReady();
-      if (!ready || !state.docRef) return;
+      if (!ready) return;
       const queue = getPendingQueue();
       if (!queue.length) return;
       const remain = [];
       for (const item of queue) {
         try {
-          await state.docRef.set(toDocData(item), { merge: true });
+          const docRef = getDocRefForEntry(item);
+          if (!docRef) {
+            remain.push(item);
+            continue;
+          }
+          await docRef.set(toDocData(item), { merge: true });
         } catch (error) {
           warn("Retry sync failed, entry kept in local queue", error);
           remain.push(item);
@@ -304,6 +385,16 @@
     init,
     schedule,
     saveNow,
+    previewDocInfo: () => {
+      if (typeof state.getPayload !== "function") return null;
+      const payload = deepClone(state.getPayload());
+      const entry = {
+        source: "preview",
+        clientUpdatedAt: new Date().toISOString(),
+        payload
+      };
+      return getDocInfoForEntry(entry);
+    },
     flushNow: () => flushPending(),
     isEnabled: () => Boolean(state.options && state.options.enabled)
   };

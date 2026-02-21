@@ -380,13 +380,6 @@
       font-weight: 700;
       word-break: break-all;
     }
-    .finish-picker-row {
-      align-items: center;
-    }
-    .finish-picker-row .btn {
-      flex: 1 1 140px;
-      min-width: 0;
-    }
     .mini-btn {
       min-height: 42px;
       padding: 8px 12px;
@@ -685,14 +678,6 @@
             </select>
           </div>
           <div class="field">
-            <label>CSV保存先フォルダー</label>
-            <div class="row finish-picker-row">
-              <button id="selectExportDirBtn" class="btn" type="button">保存先を選択</button>
-              <button id="clearExportDirBtn" class="btn danger" type="button">指定を解除</button>
-            </div>
-            <div id="exportDirText" class="muted">CSV保存先: 未指定（通常ダウンロード）</div>
-          </div>
-          <div class="field">
             <label for="newVehicleNumber">車両番号を登録</label>
             <div class="row">
               <input id="newVehicleNumber" type="text" placeholder="例: 品川 100 あ 1234" autocomplete="off">
@@ -789,8 +774,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./firebase/firebase-config.js"></script>
-  <script src="./firebase/firebase-cloud-sync.js"></script>
+  <script src="./firebase/firebase-config.js?v=20260221"></script>
+  <script src="./firebase/firebase-cloud-sync.js?v=20260221"></script>
   <script>
     (() => {
       "use strict";
@@ -801,7 +786,6 @@
         vehicles: "tire.monthly.vehicles.v1",
         drivers: "tire.monthly.drivers.v1",
         truckTypes: "tire.monthly.trucktypes.v1",
-        exportDirName: "tire.monthly.export.dirname.v1",
         theme: "tire.monthly.theme.v1"
       };
 
@@ -892,9 +876,6 @@
         sendFixBtn: document.getElementById("sendFixBtn"),
         sendSubmitBtn: document.getElementById("sendSubmitBtn"),
         themeMode: document.getElementById("themeMode"),
-        selectExportDirBtn: document.getElementById("selectExportDirBtn"),
-        clearExportDirBtn: document.getElementById("clearExportDirBtn"),
-        exportDirText: document.getElementById("exportDirText"),
         newVehicleNumber: document.getElementById("newVehicleNumber"),
         addVehicleBtn: document.getElementById("addVehicleBtn"),
         vehicleList: document.getElementById("vehicleList"),
@@ -1000,8 +981,6 @@
       let drivers = normalizeVehicles(read(STORAGE.drivers, []));
       let truckTypes = normalizeTruckTypes(read(STORAGE.truckTypes, TRUCK_TYPE_CATALOG.map((item) => item.value)));
       let tireButtons = {};
-      let exportDirHandle = null;
-      let exportDirName = localStorage.getItem(STORAGE.exportDirName) || "";
       let dialog = { target: null, fields: [], step: 0 };
       let currentScreen = FLOW_SCREENS.BASIC;
       let screenBeforeSettings = FLOW_SCREENS.BASIC;
@@ -1048,81 +1027,14 @@
         localStorage.setItem(STORAGE.truckTypes, JSON.stringify(truckTypes));
         scheduleCloudSync("master");
       };
-      const saveExportDirName = (name) => {
-        exportDirName = name || "";
-        if (exportDirName) localStorage.setItem(STORAGE.exportDirName, exportDirName);
-        else localStorage.removeItem(STORAGE.exportDirName);
-        scheduleCloudSync("settings");
-      };
 
-      const canPickDirectory = () => typeof window.showDirectoryPicker === "function";
-
-      function openHandleDb() {
-        return new Promise((resolve, reject) => {
-          if (!("indexedDB" in window)) {
-            reject(new Error("IndexedDB unavailable"));
-            return;
-          }
-          const req = indexedDB.open("tire.monthly.fs.v1", 1);
-          req.onupgradeneeded = () => {
-            const db = req.result;
-            if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
-          };
-          req.onsuccess = () => resolve(req.result);
-          req.onerror = () => reject(req.error || new Error("DB open failed"));
-        });
-      }
-
-      async function idbSet(key, value) {
-        const db = await openHandleDb();
-        await new Promise((resolve, reject) => {
-          const tx = db.transaction("kv", "readwrite");
-          tx.objectStore("kv").put(value, key);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error || new Error("DB write failed"));
-        });
-        db.close();
-      }
-
-      async function idbGet(key) {
-        const db = await openHandleDb();
-        const value = await new Promise((resolve, reject) => {
-          const tx = db.transaction("kv", "readonly");
-          const req = tx.objectStore("kv").get(key);
-          req.onsuccess = () => resolve(req.result);
-          req.onerror = () => reject(req.error || new Error("DB read failed"));
-        });
-        db.close();
-        return value;
-      }
-
-      async function idbDelete(key) {
-        const db = await openHandleDb();
-        await new Promise((resolve, reject) => {
-          const tx = db.transaction("kv", "readwrite");
-          tx.objectStore("kv").delete(key);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error || new Error("DB delete failed"));
-        });
-        db.close();
-      }
-
-      async function ensureDirWritePermission(handle) {
-        const options = { mode: "readwrite" };
-        if ((await handle.queryPermission(options)) === "granted") return true;
-        return (await handle.requestPermission(options)) === "granted";
-      }
-
-      async function loadExportDirHandle() {
-        if (!canPickDirectory()) return;
+      function cleanupLegacyExportDirectoryStorage() {
+        localStorage.removeItem("tire.monthly.export.dirname.v1");
+        if (!("indexedDB" in window)) return;
         try {
-          const handle = await idbGet("exportDirHandle");
-          if (!handle) return;
-          exportDirHandle = handle;
-          if (!exportDirName && handle.name) saveExportDirName(handle.name);
-          renderSettings();
-        } catch (error) {
-          console.warn("Export directory restore failed:", error);
+          indexedDB.deleteDatabase("tire.monthly.fs.v1");
+        } catch {
+          // noop
         }
       }
 
@@ -1330,17 +1242,6 @@
       function renderSettings() {
         const mode = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
         el.themeMode.value = mode;
-        if (canPickDirectory()) {
-          el.selectExportDirBtn.disabled = false;
-          el.clearExportDirBtn.disabled = !exportDirHandle;
-          el.exportDirText.textContent = exportDirName
-            ? `CSV保存先: ${exportDirName}`
-            : "CSV保存先: 未指定（通常ダウンロード）";
-        } else {
-          el.selectExportDirBtn.disabled = true;
-          el.clearExportDirBtn.disabled = true;
-          el.exportDirText.textContent = "このブラウザではCSV保存先指定は未対応です";
-        }
         renderVehicleList();
         renderDriverList();
         renderTruckTypeCatalogSelect();
@@ -1572,61 +1473,6 @@
         return rows;
       }
 
-      async function selectExportDirectory() {
-        if (!canPickDirectory()) {
-          showToast("このブラウザでは保存先指定に対応していません");
-          return;
-        }
-        try {
-          const handle = await window.showDirectoryPicker({ mode: "readwrite" });
-          const granted = await ensureDirWritePermission(handle);
-          if (!granted) {
-            showToast("保存先フォルダへの書き込み許可が必要です");
-            return;
-          }
-          exportDirHandle = handle;
-          saveExportDirName(handle.name || "選択済みフォルダ");
-          try {
-            await idbSet("exportDirHandle", handle);
-          } catch (error) {
-            console.warn("Export directory save failed:", error);
-          }
-          renderSettings();
-          showToast("CSV保存先フォルダを設定しました");
-        } catch (error) {
-          if (error && error.name === "AbortError") return;
-          console.warn("Directory picker error:", error);
-          showToast("保存先フォルダの設定に失敗しました");
-        }
-      }
-
-      async function clearExportDirectory() {
-        exportDirHandle = null;
-        saveExportDirName("");
-        try {
-          await idbDelete("exportDirHandle");
-        } catch (error) {
-          console.warn("Export directory clear failed:", error);
-        }
-        renderSettings();
-        showToast("CSV保存先フォルダの指定を解除しました");
-      }
-
-      async function writeCsvToConfiguredDirectory(fileName, content) {
-        if (!exportDirHandle) return false;
-        try {
-          const granted = await ensureDirWritePermission(exportDirHandle);
-          if (!granted) return false;
-          const fileHandle = await exportDirHandle.getFileHandle(fileName, { create: true });
-          const writable = await fileHandle.createWritable();
-          await writable.write(content);
-          await writable.close();
-          return true;
-        } catch (error) {
-          console.warn("Direct file write failed:", error);
-          return false;
-        }
-      }
       async function shareCsvFile(fileName, content) {
         if (typeof navigator.share !== "function") return { ok: false, reason: SHARE_REASONS.UNSUPPORTED };
         if (typeof File !== "function") return { ok: false, reason: SHARE_REASONS.UNSUPPORTED };
@@ -1691,14 +1537,6 @@
         const previousSnapshot = normalizeCurrent(JSON.parse(JSON.stringify(current)));
         if (window.FirebaseCloudSync && typeof window.FirebaseCloudSync.saveNow === "function") {
           await window.FirebaseCloudSync.saveNow("submit");
-        }
-
-        if (await writeCsvToConfiguredDirectory(fileName, content)) {
-          previous = previousSnapshot;
-          savePrevious();
-          resetCurrent({ confirm: false, toast: false });
-          await closeApp();
-          return;
         }
 
         const shareResult = await shareCsvFile(fileName, content);
@@ -2024,8 +1862,6 @@
         el.openSettingsBtn.addEventListener("click", openSettingsDialog);
         el.closeSettingsBtn.addEventListener("click", closeSettingsDialog);
         el.themeMode.addEventListener("change", (ev) => setTheme(ev.target.value));
-        el.selectExportDirBtn.addEventListener("click", () => { void selectExportDirectory(); });
-        el.clearExportDirBtn.addEventListener("click", () => { void clearExportDirectory(); });
         el.addVehicleBtn.addEventListener("click", addVehicleNumber);
         el.newVehicleNumber.addEventListener("keydown", (ev) => {
           if (ev.key !== "Enter") return;
@@ -2084,7 +1920,8 @@
       async function registerSW() {
         if (!("serviceWorker" in navigator)) return;
         try {
-          await navigator.serviceWorker.register("./sw.js");
+          const registration = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
+          await registration.update();
         } catch (e) {
           console.warn("Service Worker registration failed:", e);
         }
@@ -2096,8 +1933,9 @@
             getPayload: () => buildCloudPayload("autosave")
           });
         }
+        cleanupLegacyExportDirectoryStorage();
         initTheme();
-        current.inspectionDate = today();
+        if (!current.inspectionDate) current.inspectionDate = today();
         if (!current.driverName && drivers.length > 0) current.driverName = drivers[0];
         if (!current.vehicleNumber && vehicles.length > 0) current.vehicleNumber = vehicles[0];
         if (!truckTypes.includes(current.truckType)) current.truckType = truckTypes[0] || TRUCK_TYPES.LOW12;
@@ -2106,7 +1944,6 @@
         bindEvents();
         saveCurrent();
         renderAll();
-        void loadExportDirHandle();
         registerSW();
       }
 
