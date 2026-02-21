@@ -217,6 +217,12 @@
       align-items: stretch;
       height: 100%;
     }
+    .tire-slot.single {
+      justify-content: center;
+    }
+    .tire-slot.single .tire {
+      width: calc(50% - 4px);
+    }
     .tire-slot.dual {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -255,6 +261,11 @@
       grid-column: 2;
       width: 100%;
       align-self: start;
+      display: flex;
+      justify-content: center;
+    }
+    .spare .tire {
+      width: calc(50% - 4px);
     }
     .muted { color: var(--muted); font-size: .84rem; }
     .summary {
@@ -1646,6 +1657,8 @@
       function buildTires() {
         const layout = getLayout(current.truckType);
         const rowCount = layout.axes.length;
+        const layoutEl = el.leftTires.closest(".layout");
+        if (layoutEl) layoutEl.dataset.truckType = current.truckType;
 
         el.leftTires.innerHTML = "";
         el.rightTires.innerHTML = "";
