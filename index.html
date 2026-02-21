@@ -506,6 +506,34 @@
     #inputDialog #closeStepBtn {
       margin-left: auto;
     }
+    #inputDialog .modal {
+      position: relative;
+    }
+    .input-warning {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(.96);
+      opacity: 0;
+      pointer-events: none;
+      width: min(88vw, 760px);
+      background: color-mix(in srgb, var(--danger) 88%, black);
+      color: var(--text-strong);
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+      border-radius: 20px;
+      padding: 14px 18px;
+      font-size: 2.25rem;
+      line-height: 1.15;
+      font-weight: 800;
+      text-align: center;
+      overflow-wrap: anywhere;
+      z-index: 40;
+      transition: opacity .15s ease, transform .15s ease;
+    }
+    .input-warning.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
     .toast {
       position: fixed;
       left: 50%;
@@ -524,7 +552,14 @@
       text-align: center;
       white-space: normal;
       overflow-wrap: anywhere;
+      z-index: 30;
       transition: opacity .15s ease, transform .15s ease;
+    }
+    .toast.warn {
+      width: min(92vw, 760px);
+      border-radius: 20px;
+      padding: 14px 18px;
+      font-size: 2.25rem;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     @media (max-width: 860px) {
@@ -653,6 +688,7 @@
           </div>
         </div>
       </div>
+      <div id="inputWarning" class="input-warning" role="alert" aria-live="assertive"></div>
       <div class="modal-foot">
         <button id="prevStepBtn" class="btn" type="button">前の項目</button>
         <button id="nextStepBtn" class="btn" type="button">次の項目</button>
@@ -830,6 +866,7 @@
         prevStepBtn: document.getElementById("prevStepBtn"),
         nextStepBtn: document.getElementById("nextStepBtn"),
         closeStepBtn: document.getElementById("closeStepBtn"),
+        inputWarning: document.getElementById("inputWarning"),
         settingsDialog: document.getElementById("settingsDialog"),
         closeSettingsBtn: document.getElementById("closeSettingsBtn"),
         sendConfirmDialog: document.getElementById("sendConfirmDialog"),
@@ -1305,12 +1342,14 @@
         const obj = spare ? current.spare : current.tires[id];
         dialog.step = firstUnfilled(obj, dialog.fields);
         el.dialogTarget.textContent = spare ? "スペアタイヤ入力" : `${circle(id, current.truckType)} タイヤ入力`;
+        el.inputWarning.classList.remove("show");
         renderStep();
         if (typeof el.inputDialog.showModal === "function") el.inputDialog.showModal();
         else el.inputDialog.setAttribute("open", "");
       }
 
       function closeDialog() {
+        el.inputWarning.classList.remove("show");
         if (el.inputDialog.open && typeof el.inputDialog.close === "function") el.inputDialog.close();
         else el.inputDialog.removeAttribute("open");
       }
@@ -1403,8 +1442,24 @@
         closeDialog();
       }
 
+      function showInputWarning(message) {
+        if (!el.inputDialog.open) return false;
+        el.inputWarning.textContent = message;
+        el.inputWarning.classList.add("show");
+        clearTimeout(showInputWarning.tid);
+        showInputWarning.tid = setTimeout(() => el.inputWarning.classList.remove("show"), 1800);
+        return true;
+      }
+
       function showToast(message) {
-        el.toast.textContent = message;
+        const text = String(message ?? "");
+        const isMissingWarning = text.includes("未入力");
+        if (isMissingWarning && showInputWarning(text)) {
+          el.toast.classList.remove("show");
+          return;
+        }
+        el.toast.classList.toggle("warn", isMissingWarning);
+        el.toast.textContent = text;
         el.toast.classList.add("show");
         clearTimeout(showToast.tid);
         showToast.tid = setTimeout(() => el.toast.classList.remove("show"), 1800);
