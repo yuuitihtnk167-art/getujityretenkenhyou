@@ -338,6 +338,13 @@
       pointer-events: auto;
       box-shadow: none;
     }
+    body.screen-settings .fixed-settings {
+      display: none;
+    }
+    .settings-body {
+      display: grid;
+      gap: 12px;
+    }
     .empty { color: var(--muted); font-size: .92rem; }
     body.screen-truck .wrap {
       width: min(1320px, 98vw);
@@ -371,6 +378,25 @@
       font-size: .92rem;
       font-weight: 700;
       word-break: break-all;
+    }
+    .finish-picker-row {
+      align-items: center;
+    }
+    .finish-picker-row .btn {
+      flex: 1 1 140px;
+      min-width: 0;
+    }
+    .finish-image-preview {
+      display: none;
+      width: 100%;
+      max-height: 60vh;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #000;
+    }
+    .finish-image-preview.show {
+      display: block;
     }
     .mini-btn {
       min-height: 42px;
@@ -562,6 +588,30 @@
       font-size: 2.25rem;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .finish-overlay {
+      position: fixed;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      background: #000;
+      z-index: 2000;
+      transition: opacity .9s ease;
+    }
+    .finish-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .finish-overlay img {
+      width: 100vw;
+      height: 100dvh;
+      object-fit: cover;
+      display: block;
+      opacity: 1;
+      transition: opacity 3s ease;
+    }
+    .finish-overlay img.fade-out {
+      opacity: 0;
+    }
     @media (max-width: 860px) {
       .header { position: static; }
       .meta { grid-template-columns: 1fr; }
@@ -635,6 +685,8 @@
           <div class="truck-actions">
             <button id="truckToExportBtn" class="btn primary" type="button">点検完了</button>
             <button id="truckBackBtn" class="btn" type="button">基本情報へ戻る</button>
+            <!-- TEMP: 前回データ一括反映（不要になったらこのボタンと関連JSを削除） -->
+            <button id="applyPreviousBtn" class="btn" type="button">前回データをそのまま入力</button>
           </div>
         </div>
       </section>
@@ -654,6 +706,79 @@
           </div>
         </div>
       </section>
+    </section>
+
+    <section id="settingsScreen" class="screen">
+      <section class="panel">
+        <div class="panel-head">設定</div>
+        <div class="panel-body settings-body">
+          <div class="field">
+            <label for="themeMode">表示モード</label>
+            <select id="themeMode" class="sel">
+              <option value="light">ライトモード</option>
+              <option value="dark">ダークモード</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="finishImageSelect">終了画像</label>
+            <select id="finishImageSelect" class="sel"></select>
+            <div id="finishImageText" class="muted">選択中: 既定画像（アプリ内）</div>
+            <img id="finishImagePreview" class="finish-image-preview" alt="終了画像サンプル">
+          </div>
+          <div class="field">
+            <label>終了画像フォルダー</label>
+            <div class="row finish-picker-row">
+              <button id="selectFinishImageDirBtn" class="btn" type="button">画像フォルダーを選択</button>
+              <button id="clearFinishImageDirBtn" class="btn danger" type="button">指定を解除</button>
+            </div>
+            <div id="finishImageDirText" class="muted">終了画像フォルダー: 未指定</div>
+          </div>
+          <div class="field">
+            <label>CSV保存先フォルダー</label>
+            <div class="row finish-picker-row">
+              <button id="selectExportDirBtn" class="btn" type="button">保存先を選択</button>
+              <button id="clearExportDirBtn" class="btn danger" type="button">指定を解除</button>
+            </div>
+            <div id="exportDirText" class="muted">CSV保存先: 未指定（通常ダウンロード）</div>
+          </div>
+          <div class="field">
+            <label for="newVehicleNumber">車両番号を登録</label>
+            <div class="row">
+              <input id="newVehicleNumber" type="text" placeholder="例: 品川 100 あ 1234" autocomplete="off">
+              <button id="addVehicleBtn" class="btn primary" type="button">登録</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>登録済み車両番号</label>
+            <div id="vehicleList" class="vehicle-list"></div>
+          </div>
+          <div class="field">
+            <label for="newDriverName">乗務員を登録</label>
+            <div class="row">
+              <input id="newDriverName" type="text" placeholder="例: 山田 太郎" autocomplete="off">
+              <button id="addDriverBtn" class="btn primary" type="button">登録</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>登録済み乗務員</label>
+            <div id="driverList" class="vehicle-list"></div>
+          </div>
+          <div class="field">
+            <label for="newTruckType">車種を登録</label>
+            <div class="row">
+              <select id="newTruckType" class="sel"></select>
+              <button id="addTruckTypeBtn" class="btn primary" type="button">登録</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>登録済み車種</label>
+            <div id="truckTypeList" class="vehicle-list"></div>
+          </div>
+        </div>
+      </section>
+      <div class="row screen-actions">
+        <button id="closeSettingsBtn" class="btn primary" type="button">戻る</button>
+      </div>
     </section>
   </div>
 
@@ -697,67 +822,6 @@
     </div>
   </dialog>
 
-  <dialog id="settingsDialog" aria-label="設定">
-    <div class="modal">
-      <div class="modal-head">
-        <h3>設定</h3>
-      </div>
-      <div class="modal-body">
-        <div class="field">
-          <label for="themeMode">表示モード</label>
-          <select id="themeMode" class="sel">
-            <option value="light">ライトモード</option>
-            <option value="dark">ダークモード</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>CSV保存先フォルダ</label>
-          <div class="row">
-            <button id="selectExportDirBtn" class="btn" type="button">保存先を選択</button>
-            <button id="clearExportDirBtn" class="btn danger" type="button">指定を解除</button>
-          </div>
-          <div id="exportDirText" class="muted">保存先: 未指定（通常ダウンロード）</div>
-        </div>
-        <div class="field">
-          <label for="newVehicleNumber">車両番号を登録</label>
-          <div class="row">
-            <input id="newVehicleNumber" type="text" placeholder="例: 品川 100 あ 1234" autocomplete="off">
-            <button id="addVehicleBtn" class="btn primary" type="button">登録</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>登録済み車両番号</label>
-          <div id="vehicleList" class="vehicle-list"></div>
-        </div>
-        <div class="field">
-          <label for="newDriverName">乗務員を登録</label>
-          <div class="row">
-            <input id="newDriverName" type="text" placeholder="例: 山田 太郎" autocomplete="off">
-            <button id="addDriverBtn" class="btn primary" type="button">登録</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>登録済み乗務員</label>
-          <div id="driverList" class="vehicle-list"></div>
-        </div>
-        <div class="field">
-          <label for="newTruckType">車種を登録</label>
-          <div class="row">
-            <select id="newTruckType" class="sel"></select>
-            <button id="addTruckTypeBtn" class="btn primary" type="button">登録</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>登録済み車種</label>
-          <div id="truckTypeList" class="vehicle-list"></div>
-        </div>
-      </div>
-      <div class="modal-foot">
-        <button id="closeSettingsBtn" class="btn primary" type="button">閉じる</button>
-      </div>
-    </div>
-  </dialog>
-
   <dialog id="sendConfirmDialog" aria-label="送信確認">
     <div class="modal">
       <div class="modal-head">
@@ -774,6 +838,9 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="finishOverlay" class="finish-overlay" aria-hidden="true">
+    <img id="finishImage" alt="送信完了画像">
+  </div>
   <script>
     (() => {
       "use strict";
@@ -785,6 +852,8 @@
         drivers: "tire.monthly.drivers.v1",
         truckTypes: "tire.monthly.trucktypes.v1",
         exportDirName: "tire.monthly.export.dirname.v1",
+        finishImageDirName: "tire.monthly.finish.dir.name.v1",
+        finishImageName: "tire.monthly.finish.image.name.v1",
         theme: "tire.monthly.theme.v1"
       };
 
@@ -799,8 +868,14 @@
       const FLOW_SCREENS = {
         BASIC: "basic",
         TRUCK: "truck",
-        EXPORT: "export"
+        EXPORT: "export",
+        SETTINGS: "settings"
       };
+      const DEFAULT_FINISH_IMAGE_PATH = "icons/tire-512.png";
+      const LEGACY_FINISH_IMAGE_PATH_KEY = "tire.monthly.finish.image.v1";
+      const FINISH_IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|avif|svg)$/i;
+      const FINISH_SCREEN_HOLD_MS = 2200;
+      const FINISH_SCREEN_FADE_MS = 5000;
 
       const DISPLAY_MAP_12 = ["①", "⑦", "②", "⑧", "③", "⑨", "④", "⑩", "⑤", "⑪", "⑥", "⑫"];
       const DISPLAY_MAP_10 = ["①", "⑥", "②", "⑦", "③", "⑧", "④", "⑨", "⑤", "⑩"];
@@ -838,6 +913,7 @@
         basicScreen: document.getElementById("basicScreen"),
         truckScreen: document.getElementById("truckScreen"),
         exportScreen: document.getElementById("exportScreen"),
+        settingsScreen: document.getElementById("settingsScreen"),
         inspectionDate: document.getElementById("inspectionDate"),
         driverName: document.getElementById("driverName"),
         vehicleNumber: document.getElementById("vehicleNumber"),
@@ -848,6 +924,7 @@
         truckAxes: document.getElementById("truckAxes"),
         spareButton: document.getElementById("spareButton"),
         truckBackBtn: document.getElementById("truckBackBtn"),
+        applyPreviousBtn: document.getElementById("applyPreviousBtn"),
         truckToExportBtn: document.getElementById("truckToExportBtn"),
         exportCsvBtn: document.getElementById("exportCsvBtn"),
         exportBackBtn: document.getElementById("exportBackBtn"),
@@ -867,12 +944,17 @@
         nextStepBtn: document.getElementById("nextStepBtn"),
         closeStepBtn: document.getElementById("closeStepBtn"),
         inputWarning: document.getElementById("inputWarning"),
-        settingsDialog: document.getElementById("settingsDialog"),
         closeSettingsBtn: document.getElementById("closeSettingsBtn"),
         sendConfirmDialog: document.getElementById("sendConfirmDialog"),
         sendFixBtn: document.getElementById("sendFixBtn"),
         sendSubmitBtn: document.getElementById("sendSubmitBtn"),
         themeMode: document.getElementById("themeMode"),
+        finishImageSelect: document.getElementById("finishImageSelect"),
+        finishImageText: document.getElementById("finishImageText"),
+        finishImagePreview: document.getElementById("finishImagePreview"),
+        selectFinishImageDirBtn: document.getElementById("selectFinishImageDirBtn"),
+        clearFinishImageDirBtn: document.getElementById("clearFinishImageDirBtn"),
+        finishImageDirText: document.getElementById("finishImageDirText"),
         selectExportDirBtn: document.getElementById("selectExportDirBtn"),
         clearExportDirBtn: document.getElementById("clearExportDirBtn"),
         exportDirText: document.getElementById("exportDirText"),
@@ -885,7 +967,9 @@
         newTruckType: document.getElementById("newTruckType"),
         addTruckTypeBtn: document.getElementById("addTruckTypeBtn"),
         truckTypeList: document.getElementById("truckTypeList"),
-        toast: document.getElementById("toast")
+        toast: document.getElementById("toast"),
+        finishOverlay: document.getElementById("finishOverlay"),
+        finishImage: document.getElementById("finishImage")
       };
 
       const today = () => {
@@ -985,6 +1069,14 @@
       let exportDirName = localStorage.getItem(STORAGE.exportDirName) || "";
       let dialog = { target: null, fields: [], step: 0 };
       let currentScreen = FLOW_SCREENS.BASIC;
+      let screenBeforeSettings = FLOW_SCREENS.BASIC;
+      let finishImageDirHandle = null;
+      let finishImageDirName = localStorage.getItem(STORAGE.finishImageDirName) || "";
+      let finishImageName = "";
+      let finishImageOptions = [];
+      let finishImageOptionsLoaded = true;
+      let finishImageObjectUrl = "";
+      let finishSequenceRunning = false;
 
       const saveCurrent = () => {
         current.updatedAt = new Date().toISOString();
@@ -1005,6 +1097,61 @@
         if (exportDirName) localStorage.setItem(STORAGE.exportDirName, exportDirName);
         else localStorage.removeItem(STORAGE.exportDirName);
       };
+      const saveFinishImageDirName = (name) => {
+        finishImageDirName = name || "";
+        if (finishImageDirName) localStorage.setItem(STORAGE.finishImageDirName, finishImageDirName);
+        else localStorage.removeItem(STORAGE.finishImageDirName);
+      };
+      const decodeUriSafe = (value) => {
+        try {
+          return decodeURI(value);
+        } catch {
+          return value;
+        }
+      };
+      const normalizeFinishImageName = (value) => {
+        const raw = decodeUriSafe(String(value ?? "").trim().replace(/\\/g, "/"));
+        if (!raw) return "";
+        if (/^(data:|blob:|https?:)/i.test(raw)) return "";
+        const name = raw.split("/").pop() || "";
+        if (!name) return "";
+        return FINISH_IMAGE_EXT_RE.test(name) ? name : "";
+      };
+      const legacyFinishImagePath = localStorage.getItem(LEGACY_FINISH_IMAGE_PATH_KEY) || "";
+      finishImageName = normalizeFinishImageName(localStorage.getItem(STORAGE.finishImageName) || legacyFinishImagePath);
+
+      const saveFinishImageName = (name) => {
+        finishImageName = normalizeFinishImageName(name);
+        if (finishImageName) localStorage.setItem(STORAGE.finishImageName, finishImageName);
+        else localStorage.removeItem(STORAGE.finishImageName);
+      };
+      const clearFinishImageObjectUrl = () => {
+        if (!finishImageObjectUrl) return;
+        URL.revokeObjectURL(finishImageObjectUrl);
+        finishImageObjectUrl = "";
+      };
+      function toggleFinishImagePreview(show) {
+        const visible = Boolean(show && finishImageName);
+        el.finishImagePreview.classList.toggle("show", visible);
+      }
+      const finishImageLabel = (name) => name || "既定画像（アプリ内）";
+      async function applyFinishImage() {
+        clearFinishImageObjectUrl();
+        if (finishImageDirHandle && finishImageName) {
+          try {
+            const fileHandle = await finishImageDirHandle.getFileHandle(finishImageName);
+            const file = await fileHandle.getFile();
+            finishImageObjectUrl = URL.createObjectURL(file);
+            el.finishImage.src = finishImageObjectUrl;
+            el.finishImagePreview.src = finishImageObjectUrl;
+            return;
+          } catch (error) {
+            console.warn("Finish image read failed:", error);
+          }
+        }
+        el.finishImage.src = DEFAULT_FINISH_IMAGE_PATH;
+        if (!finishImageName) el.finishImagePreview.removeAttribute("src");
+      }
 
       const canPickDirectory = () => typeof window.showDirectoryPicker === "function";
 
@@ -1077,6 +1224,92 @@
         }
       }
 
+      async function ensureDirReadPermission(handle, request = false) {
+        const options = { mode: "read" };
+        if ((await handle.queryPermission(options)) === "granted") return true;
+        if (!request) return false;
+        return (await handle.requestPermission(options)) === "granted";
+      }
+
+      async function listFinishImageNames(handle) {
+        const names = [];
+        for await (const [name, entry] of handle.entries()) {
+          if (entry.kind !== "file") continue;
+          if (!FINISH_IMAGE_EXT_RE.test(name)) continue;
+          names.push(name);
+        }
+        names.sort((a, b) => a.localeCompare(b, "ja"));
+        return names;
+      }
+
+      async function refreshFinishImageOptions(requestPermission = false) {
+        if (!finishImageDirHandle) {
+          finishImageOptions = [];
+          finishImageOptionsLoaded = true;
+          renderSettings();
+          await applyFinishImage();
+          return;
+        }
+        try {
+          const granted = await ensureDirReadPermission(finishImageDirHandle, requestPermission);
+          if (!granted) {
+            finishImageOptions = [];
+            saveFinishImageName("");
+            finishImageOptionsLoaded = true;
+            renderSettings();
+            await applyFinishImage();
+            return;
+          }
+          const names = await listFinishImageNames(finishImageDirHandle);
+          finishImageOptions = names;
+          if (finishImageName && !finishImageOptions.includes(finishImageName)) saveFinishImageName("");
+          if (!finishImageName && finishImageOptions.length > 0) saveFinishImageName(finishImageOptions[0]);
+          finishImageOptionsLoaded = true;
+          renderSettings();
+          await applyFinishImage();
+        } catch (error) {
+          console.warn("Finish image list load failed:", error);
+          finishImageOptions = [];
+          finishImageOptionsLoaded = true;
+          renderSettings();
+          await applyFinishImage();
+        }
+      }
+
+      async function setFinishImageName(name, showPreview = false) {
+        saveFinishImageName(name);
+        await applyFinishImage();
+        toggleFinishImagePreview(showPreview);
+      }
+
+      async function loadFinishImageDirHandle() {
+        if (!canPickDirectory()) return;
+        try {
+          const handle = await idbGet("finishImageDirHandle");
+          if (!handle) {
+            saveFinishImageDirName("");
+            saveFinishImageName("");
+            finishImageOptionsLoaded = true;
+            renderSettings();
+            await applyFinishImage();
+            return;
+          }
+          finishImageDirHandle = handle;
+          if (!finishImageDirName && handle.name) saveFinishImageDirName(handle.name);
+          finishImageOptionsLoaded = false;
+          renderSettings();
+          await refreshFinishImageOptions();
+        } catch (error) {
+          console.warn("Finish image directory restore failed:", error);
+          finishImageDirHandle = null;
+          saveFinishImageDirName("");
+          finishImageOptions = [];
+          finishImageOptionsLoaded = true;
+          renderSettings();
+          await applyFinishImage();
+        }
+      }
+
       if (current.vehicleNumber && !vehicles.includes(current.vehicleNumber)) {
         vehicles.unshift(current.vehicleNumber);
         saveVehicles();
@@ -1116,11 +1349,14 @@
         const basic = currentScreen === FLOW_SCREENS.BASIC;
         const truck = currentScreen === FLOW_SCREENS.TRUCK;
         const exp = currentScreen === FLOW_SCREENS.EXPORT;
+        const settings = currentScreen === FLOW_SCREENS.SETTINGS;
 
         el.basicScreen.classList.toggle("active", basic);
         el.truckScreen.classList.toggle("active", truck);
         el.exportScreen.classList.toggle("active", exp);
+        el.settingsScreen.classList.toggle("active", settings);
         document.body.classList.toggle("screen-truck", truck);
+        document.body.classList.toggle("screen-settings", settings);
       }
 
       function renderExportSummary() {
@@ -1139,6 +1375,7 @@
           tireButtons[id].className = `tire ${tireClass(id)}`.trim();
         });
         el.spareButton.className = `tire ${spareClass()}`.trim();
+        if (el.applyPreviousBtn) el.applyPreviousBtn.disabled = !previous;
       }
 
       function renderDriverNameSelect() {
@@ -1277,16 +1514,44 @@
       function renderSettings() {
         const mode = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
         el.themeMode.value = mode;
+        toggleFinishImagePreview(false);
+        const finishOptions = finishImageOptions.slice();
+        el.finishImageSelect.innerHTML = "";
+        el.finishImageSelect.appendChild(new Option("既定画像（アプリ内）", ""));
+        finishOptions.forEach((name) => {
+          el.finishImageSelect.appendChild(new Option(finishImageLabel(name), name));
+        });
+        el.finishImageSelect.value = finishImageName;
+        if (el.finishImageSelect.value !== finishImageName) el.finishImageSelect.value = "";
+        const selectedLabel = finishImageLabel(finishImageName);
         if (canPickDirectory()) {
+          el.selectFinishImageDirBtn.disabled = false;
+          el.clearFinishImageDirBtn.disabled = !finishImageDirHandle;
+          el.finishImageDirText.textContent = finishImageDirName
+            ? `終了画像フォルダー: ${finishImageDirName}`
+            : "終了画像フォルダー: 未指定";
+          if (!finishImageDirHandle) {
+            el.finishImageText.textContent = "選択中: 既定画像（アプリ内）";
+          } else if (!finishImageOptionsLoaded) {
+            el.finishImageText.textContent = "選択中: 読み込み中";
+          } else if (finishOptions.length === 0) {
+            el.finishImageText.textContent = "選択中: 既定画像（フォルダー内に画像なし / 権限未許可）";
+          } else {
+            el.finishImageText.textContent = `選択中: ${selectedLabel}`;
+          }
           el.selectExportDirBtn.disabled = false;
-          el.clearExportDirBtn.disabled = !exportDirName;
+          el.clearExportDirBtn.disabled = !exportDirHandle;
           el.exportDirText.textContent = exportDirName
-            ? `保存先: ${exportDirName}`
-            : "保存先: 未指定（通常ダウンロード）";
+            ? `CSV保存先: ${exportDirName}`
+            : "CSV保存先: 未指定（通常ダウンロード）";
         } else {
+          el.selectFinishImageDirBtn.disabled = true;
+          el.clearFinishImageDirBtn.disabled = true;
+          el.finishImageDirText.textContent = "このブラウザでは終了画像フォルダー指定は未対応です";
           el.selectExportDirBtn.disabled = true;
           el.clearExportDirBtn.disabled = true;
-          el.exportDirText.textContent = "このブラウザでは保存先指定は未対応です（通常ダウンロード）";
+          el.exportDirText.textContent = "このブラウザではCSV保存先指定は未対応です";
+          el.finishImageText.textContent = `選択中: ${selectedLabel}`;
         }
         renderVehicleList();
         renderDriverList();
@@ -1374,14 +1639,15 @@
       }
 
       function openSettingsDialog() {
+        screenBeforeSettings = currentScreen;
         renderSettings();
-        if (typeof el.settingsDialog.showModal === "function") el.settingsDialog.showModal();
-        else el.settingsDialog.setAttribute("open", "");
+        setFlowScreen(FLOW_SCREENS.SETTINGS);
+        void refreshFinishImageOptions();
       }
 
       function closeSettingsDialog() {
-        if (el.settingsDialog.open && typeof el.settingsDialog.close === "function") el.settingsDialog.close();
-        else el.settingsDialog.removeAttribute("open");
+        const backTo = screenBeforeSettings === FLOW_SCREENS.SETTINGS ? FLOW_SCREENS.BASIC : screenBeforeSettings;
+        setFlowScreen(backTo);
       }
 
       function openSendConfirmDialog() {
@@ -1464,6 +1730,28 @@
         clearTimeout(showToast.tid);
         showToast.tid = setTimeout(() => el.toast.classList.remove("show"), 1800);
       }
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      async function showFinishScreen() {
+        if (finishSequenceRunning) return;
+        finishSequenceRunning = true;
+        clearTimeout(showToast.tid);
+        el.toast.classList.remove("show");
+        el.finishImage.classList.remove("fade-out");
+        el.finishOverlay.classList.add("show");
+        el.finishOverlay.setAttribute("aria-hidden", "false");
+        await wait(FINISH_SCREEN_HOLD_MS);
+        el.finishImage.classList.add("fade-out");
+        await wait(FINISH_SCREEN_FADE_MS);
+        el.finishOverlay.setAttribute("aria-hidden", "true");
+        try {
+          window.close();
+        } catch {
+          // noop
+        }
+        await wait(120);
+        if (!document.hidden) window.location.replace("about:blank");
+      }
 
       function snapshot() {
         return {
@@ -1477,6 +1765,13 @@
         const s = String(v ?? "");
         if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
         return s;
+      }
+      function sanitizeFileNamePart(value, fallback = "乗務員未設定") {
+        const s = String(value ?? "").trim();
+        const cleaned = s
+          .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_")
+          .replace(/\s+/g, " ");
+        return cleaned || fallback;
       }
 
       function rowsFor(entry) {
@@ -1511,6 +1806,52 @@
           report()
         ]);
         return rows;
+      }
+
+      async function selectFinishImageDirectory() {
+        if (!canPickDirectory()) {
+          showToast("このブラウザでは終了画像フォルダー指定に対応していません");
+          return;
+        }
+        try {
+          const handle = await window.showDirectoryPicker({ mode: "read" });
+          const granted = await ensureDirReadPermission(handle, true);
+          if (!granted) {
+            showToast("終了画像フォルダーへの読み取り許可が必要です");
+            return;
+          }
+          finishImageDirHandle = handle;
+          saveFinishImageDirName(handle.name || "選択済みフォルダー");
+          try {
+            await idbSet("finishImageDirHandle", handle);
+          } catch (error) {
+            console.warn("Finish image directory save failed:", error);
+          }
+          finishImageOptionsLoaded = false;
+          renderSettings();
+          await refreshFinishImageOptions();
+          showToast("終了画像フォルダーを設定しました");
+        } catch (error) {
+          if (error && error.name === "AbortError") return;
+          console.warn("Finish image directory picker error:", error);
+          showToast("終了画像フォルダーの設定に失敗しました");
+        }
+      }
+
+      async function clearFinishImageDirectory() {
+        finishImageDirHandle = null;
+        saveFinishImageDirName("");
+        saveFinishImageName("");
+        finishImageOptions = [];
+        finishImageOptionsLoaded = true;
+        try {
+          await idbDelete("finishImageDirHandle");
+        } catch (error) {
+          console.warn("Finish image directory clear failed:", error);
+        }
+        renderSettings();
+        await applyFinishImage();
+        showToast("終了画像フォルダーの指定を解除しました");
       }
 
       async function selectExportDirectory() {
@@ -1570,6 +1911,7 @@
       }
 
       async function exportCsv() {
+        if (finishSequenceRunning) return;
         const rows = [[
           "保存日時", "点検日", "車両番号", "乗務員", "タイヤ番号", "メーカー", "種類", "溝", "偏摩耗", "キズ", "空気圧", "状態", "報告事項"
         ]];
@@ -1577,8 +1919,9 @@
         rows.push(...rowsFor(currentEntry));
 
         const csv = rows.map((r) => r.map(esc).join(",")).join("\r\n");
+        const driverPart = sanitizeFileNamePart(currentEntry.data.driverName);
         const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const fileName = `月次タイヤ点検_${stamp}.csv`;
+        const fileName = `月次タイヤ点検_${driverPart}_${stamp}.csv`;
         const content = "\uFEFF" + csv;
         const previousSnapshot = normalizeCurrent(JSON.parse(JSON.stringify(current)));
 
@@ -1586,7 +1929,7 @@
           previous = previousSnapshot;
           savePrevious();
           resetCurrent({ confirm: false, toast: false });
-          showToast(`CSVを指定フォルダ(${exportDirName || "選択先"})に保存し、入力をリセットしました`);
+          await showFinishScreen();
           return;
         }
 
@@ -1602,7 +1945,7 @@
         previous = previousSnapshot;
         savePrevious();
         resetCurrent({ confirm: false, toast: false });
-        showToast(exportDirName ? "指定フォルダへ保存できず通常ダウンロードし、入力をリセットしました" : "CSVを出力し、入力をリセットしました");
+        await showFinishScreen();
       }
 
       function resetCurrent(options = {}) {
@@ -1791,6 +2134,31 @@
         showToast("車種を削除しました");
       }
 
+      // TEMP: 前回データ一括反映（不要になったらこの関数ごと削除）
+      function applyPreviousSnapshotToCurrent() {
+        if (!previous) {
+          showToast("前回データがありません");
+          return;
+        }
+        const prevData = normalizeCurrent(previous);
+        const active = getActiveIds(current.truckType);
+        const activeSet = new Set(active);
+
+        ALL_IDS.forEach((id) => {
+          if (!activeSet.has(id)) {
+            current.tires[id] = newTire();
+            return;
+          }
+          current.tires[id] = { ...newTire(), ...(prevData.tires[id] || {}) };
+        });
+        current.spare = { ...newSpare(), ...(prevData.spare || {}) };
+        current.reportNote = prevData.reportNote || "";
+        saveCurrent();
+        closeDialog();
+        renderAll();
+        showToast("前回データを反映しました");
+      }
+
       function buildTires() {
         const layout = getLayout(current.truckType);
         const rowCount = layout.axes.length;
@@ -1861,6 +2229,7 @@
           setFlowScreen(FLOW_SCREENS.TRUCK);
         });
         el.truckBackBtn.addEventListener("click", () => setFlowScreen(FLOW_SCREENS.BASIC));
+        if (el.applyPreviousBtn) el.applyPreviousBtn.addEventListener("click", applyPreviousSnapshotToCurrent);
         el.truckToExportBtn.addEventListener("click", () => {
           if (!isInspectionComplete()) {
             showToast("未入力があります。すべて入力してください。");
@@ -1887,6 +2256,16 @@
         el.openSettingsBtn.addEventListener("click", openSettingsDialog);
         el.closeSettingsBtn.addEventListener("click", closeSettingsDialog);
         el.themeMode.addEventListener("change", (ev) => setTheme(ev.target.value));
+        el.finishImageSelect.addEventListener("change", (ev) => {
+          void (async () => {
+            await setFinishImageName(ev.target.value, false);
+            renderSettings();
+            await applyFinishImage();
+            toggleFinishImagePreview(Boolean(ev.target.value));
+          })();
+        });
+        el.selectFinishImageDirBtn.addEventListener("click", () => { void selectFinishImageDirectory(); });
+        el.clearFinishImageDirBtn.addEventListener("click", () => { void clearFinishImageDirectory(); });
         el.selectExportDirBtn.addEventListener("click", () => { void selectExportDirectory(); });
         el.clearExportDirBtn.addEventListener("click", () => { void clearExportDirectory(); });
         el.addVehicleBtn.addEventListener("click", addVehicleNumber);
@@ -1942,6 +2321,14 @@
           }
         });
         el.stepSelect.addEventListener("change", (ev) => applyStep(ev.target.value));
+        el.finishImage.addEventListener("error", () => {
+          clearFinishImageObjectUrl();
+          if (el.finishImage.src.endsWith(DEFAULT_FINISH_IMAGE_PATH)) return;
+          el.finishImage.src = DEFAULT_FINISH_IMAGE_PATH;
+        });
+        el.finishImagePreview.addEventListener("error", () => {
+          toggleFinishImagePreview(false);
+        });
 
       }
 
@@ -1961,11 +2348,13 @@
         if (!current.vehicleNumber && vehicles.length > 0) current.vehicleNumber = vehicles[0];
         if (!truckTypes.includes(current.truckType)) current.truckType = truckTypes[0] || TRUCK_TYPES.LOW12;
         currentScreen = FLOW_SCREENS.BASIC;
+        void applyFinishImage();
         buildTires();
         bindEvents();
         saveCurrent();
         renderAll();
         void loadExportDirHandle();
+        void loadFinishImageDirHandle();
         registerSW();
       }
 
