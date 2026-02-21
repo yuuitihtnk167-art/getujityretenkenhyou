@@ -1003,6 +1003,7 @@
       let dialog = { target: null, fields: [], step: 0 };
       let currentScreen = FLOW_SCREENS.BASIC;
       let screenBeforeSettings = FLOW_SCREENS.BASIC;
+      const SHARE_REASONS = { OK: "ok", CANCEL: "cancel", UNSUPPORTED: "unsupported", ERROR: "error" };
 
       const saveCurrent = () => {
         current.updatedAt = new Date().toISOString();
@@ -1415,7 +1416,6 @@
         if (el.sendConfirmDialog.open && typeof el.sendConfirmDialog.close === "function") el.sendConfirmDialog.close();
         else el.sendConfirmDialog.removeAttribute("open");
       }
-
       const targetObj = () => dialog.target === "spare" ? current.spare : current.tires[dialog.target];
       const previousTargetObj = () => {
         if (!previous) return null;
@@ -1598,20 +1598,31 @@
         }
       }
       async function shareCsvFile(fileName, content) {
+        if (typeof navigator.share !== "function") return { ok: false, reason: SHARE_REASONS.UNSUPPORTED };
+        if (typeof File !== "function") return { ok: false, reason: SHARE_REASONS.UNSUPPORTED };
+        let file;
         try {
-          if (!navigator.share) return false;
-          const file = new File([content], fileName, { type: "text/csv;charset=utf-8;" });
-          if (navigator.canShare && !navigator.canShare({ files: [file] })) return false;
+          file = new File([content], fileName, { type: "text/csv;charset=utf-8;" });
+        } catch {
+          return { ok: false, reason: SHARE_REASONS.UNSUPPORTED };
+        }
+        try {
+          if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+            return { ok: false, reason: SHARE_REASONS.UNSUPPORTED };
+          }
+        } catch {
+          return { ok: false, reason: SHARE_REASONS.UNSUPPORTED };
+        }
+        try {
+          // iOS互換性を優先して files のみ渡す
           await navigator.share({
-            title: fileName,
-            text: "月次タイヤ点検CSV",
             files: [file]
           });
-          return true;
+          return { ok: true, reason: SHARE_REASONS.OK };
         } catch (error) {
-          if (error && error.name === "AbortError") return true;
+          if (error && error.name === "AbortError") return { ok: false, reason: SHARE_REASONS.CANCEL };
           console.warn("Share CSV failed:", error);
-          return false;
+          return { ok: false, reason: SHARE_REASONS.ERROR };
         }
       }
       function downloadCsv(fileName, content) {
@@ -1657,7 +1668,12 @@
           return;
         }
 
-        if (!(await shareCsvFile(fileName, content))) {
+        const shareResult = await shareCsvFile(fileName, content);
+        if (!shareResult.ok) {
+          if (shareResult.reason === SHARE_REASONS.CANCEL) {
+            showToast("共有がキャンセルされました");
+            return;
+          }
           downloadCsv(fileName, content);
         }
         previous = previousSnapshot;
