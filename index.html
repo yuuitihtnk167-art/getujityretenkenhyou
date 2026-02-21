@@ -484,6 +484,12 @@
       justify-content: space-between;
       gap: 8px;
     }
+    #inputDialog .modal-foot {
+      justify-content: flex-start;
+    }
+    #inputDialog #closeStepBtn {
+      margin-left: auto;
+    }
     .toast {
       position: fixed;
       left: 50%;
@@ -587,7 +593,7 @@
             <textarea id="reportNote" placeholder="報告事項を入力"></textarea>
           </div>
           <div class="row export-actions">
-            <button id="exportCsvBtn" class="btn warn send-btn" type="button">専務に送る</button>
+            <button id="exportCsvBtn" class="btn primary send-btn" type="button">専務に送る</button>
             <button id="exportBackBtn" class="btn send-btn" type="button">修正する</button>
           </div>
         </div>
@@ -628,6 +634,7 @@
       </div>
       <div class="modal-foot">
         <button id="prevStepBtn" class="btn" type="button">前の項目</button>
+        <button id="nextStepBtn" class="btn" type="button">次の項目</button>
         <button id="closeStepBtn" class="btn primary" type="button">完了</button>
       </div>
     </div>
@@ -785,6 +792,7 @@
         stepPreview: document.getElementById("stepPreview"),
         prevStepPreview: document.getElementById("prevStepPreview"),
         prevStepBtn: document.getElementById("prevStepBtn"),
+        nextStepBtn: document.getElementById("nextStepBtn"),
         closeStepBtn: document.getElementById("closeStepBtn"),
         settingsDialog: document.getElementById("settingsDialog"),
         closeSettingsBtn: document.getElementById("closeSettingsBtn"),
@@ -1302,6 +1310,7 @@
           ? dialog.fields.map((f) => `${f.label}: ${text(prevObj[f.key])}`).join("\n")
           : "前回データなし";
         el.prevStepBtn.disabled = dialog.step === 0;
+        el.nextStepBtn.disabled = dialog.step >= dialog.fields.length - 1;
         requestAnimationFrame(() => el.stepSelect.focus());
       }
 
@@ -1783,6 +1792,12 @@
         el.prevStepBtn.addEventListener("click", () => {
           if (dialog.step > 0) {
             dialog.step -= 1;
+            renderStep();
+          }
+        });
+        el.nextStepBtn.addEventListener("click", () => {
+          if (dialog.step < dialog.fields.length - 1) {
+            dialog.step += 1;
             renderStep();
           }
         });
