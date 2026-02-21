@@ -117,6 +117,17 @@
       font-weight: 700;
     }
     .panel-body { padding: 12px; }
+    #truckScreen .panel {
+      margin-top: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      overflow: visible;
+    }
+    #truckScreen .panel-body {
+      padding: 0;
+    }
     #exportScreen .panel {
       background: var(--surface2);
     }
@@ -131,7 +142,7 @@
       padding: 10px 10px 8px;
     }
     .field.export-note-field textarea {
-      min-height: 336px;
+      min-height: 437px;
     }
     .export-actions {
       padding: 0 10px 10px;
@@ -431,6 +442,29 @@
       line-height: 1.4;
       white-space: pre-line;
     }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: start;
+    }
+    .preview-col {
+      display: grid;
+      gap: 4px;
+    }
+    .preview-label {
+      margin: 0;
+      min-height: 1.1em;
+      font-size: .76rem;
+      color: var(--muted);
+      font-weight: 700;
+      padding-left: 2px;
+    }
+    .preview-prev {
+      color: color-mix(in srgb, var(--text) 62%, var(--muted));
+      background: color-mix(in srgb, var(--surface2) 45%, transparent);
+      border-color: color-mix(in srgb, var(--line) 70%, transparent);
+    }
     .modal-foot {
       padding: 12px;
       border-top: 1px solid var(--line);
@@ -515,7 +549,6 @@
 
     <section id="truckScreen" class="screen">
       <section class="panel">
-        <div class="panel-head">トラック上面図（タイヤ配置）</div>
         <div class="panel-body">
           <div class="layout" role="group" aria-label="タイヤ入力">
             <div id="leftTires" class="col"></div>
@@ -543,8 +576,7 @@
           </div>
           <div class="row export-actions">
             <button id="exportCsvBtn" class="btn warn send-btn" type="button">専務に送る</button>
-            <button id="exportBackBtn" class="btn" type="button">タイヤ配置へ戻る</button>
-            <button id="resetBtn" class="btn danger" type="button">新しい点検を開始</button>
+            <button id="exportBackBtn" class="btn send-btn" type="button">修正する</button>
           </div>
         </div>
       </section>
@@ -570,7 +602,16 @@
         <select id="stepSelect" class="sel"></select>
         <div class="field">
           <label>入力内容一覧</label>
-          <p id="stepPreview" class="preview"></p>
+          <div class="preview-grid">
+            <div class="preview-col">
+              <p class="preview-label">現在</p>
+              <p id="stepPreview" class="preview"></p>
+            </div>
+            <div class="preview-col">
+              <p class="preview-label">前回</p>
+              <p id="prevStepPreview" class="preview preview-prev"></p>
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-foot">
@@ -648,6 +689,7 @@
 
       const STORAGE = {
         current: "tire.monthly.current.v1",
+        previous: "tire.monthly.previous.v1",
         vehicles: "tire.monthly.vehicles.v1",
         drivers: "tire.monthly.drivers.v1",
         truckTypes: "tire.monthly.trucktypes.v1",
@@ -722,7 +764,6 @@
         openSettingsBtn: document.getElementById("openSettingsBtn"),
         exportSummary: document.getElementById("exportSummary"),
         reportNote: document.getElementById("reportNote"),
-        resetBtn: document.getElementById("resetBtn"),
         inputDialog: document.getElementById("inputDialog"),
         dialogTarget: document.getElementById("dialogTarget"),
         dialogCloseBtn: document.getElementById("dialogCloseBtn"),
@@ -730,6 +771,7 @@
         stepTitle: document.getElementById("stepTitle"),
         stepSelect: document.getElementById("stepSelect"),
         stepPreview: document.getElementById("stepPreview"),
+        prevStepPreview: document.getElementById("prevStepPreview"),
         prevStepBtn: document.getElementById("prevStepBtn"),
         closeStepBtn: document.getElementById("closeStepBtn"),
         settingsDialog: document.getElementById("settingsDialog"),
@@ -811,6 +853,10 @@
         if (!curr.updatedAt) curr.updatedAt = new Date().toISOString();
         return curr;
       };
+      const normalizePrevious = (obj) => {
+        if (!obj || typeof obj !== "object") return null;
+        return normalizeCurrent(obj);
+      };
 
       const normalizeVehicles = (rows) => {
         if (!Array.isArray(rows)) return [];
@@ -834,6 +880,7 @@
       };
 
       let current = normalizeCurrent(read(STORAGE.current, defaultCurrent()));
+      let previous = normalizePrevious(read(STORAGE.previous, null));
       let vehicles = normalizeVehicles(read(STORAGE.vehicles, []));
       let drivers = normalizeVehicles(read(STORAGE.drivers, []));
       let truckTypes = normalizeTruckTypes(read(STORAGE.truckTypes, TRUCK_TYPE_CATALOG.map((item) => item.value)));
@@ -846,6 +893,13 @@
       const saveCurrent = () => {
         current.updatedAt = new Date().toISOString();
         localStorage.setItem(STORAGE.current, JSON.stringify(current));
+      };
+      const savePrevious = () => {
+        if (!previous) {
+          localStorage.removeItem(STORAGE.previous);
+          return;
+        }
+        localStorage.setItem(STORAGE.previous, JSON.stringify(previous));
       };
       const saveVehicles = () => localStorage.setItem(STORAGE.vehicles, JSON.stringify(vehicles));
       const saveDrivers = () => localStorage.setItem(STORAGE.drivers, JSON.stringify(drivers));
@@ -1214,9 +1268,14 @@
       }
 
       const targetObj = () => dialog.target === "spare" ? current.spare : current.tires[dialog.target];
+      const previousTargetObj = () => {
+        if (!previous) return null;
+        return dialog.target === "spare" ? previous.spare : previous.tires[dialog.target];
+      };
 
       function renderStep() {
         const obj = targetObj();
+        const prevObj = previousTargetObj();
         const field = dialog.fields[dialog.step];
         const promptText = "選択してください";
         el.stepIndicator.textContent = `項目 ${dialog.step + 1} / ${dialog.fields.length}（選択で自動遷移）`;
@@ -1227,6 +1286,9 @@
         // Always reset to placeholder so selecting the same value can still trigger `change`.
         el.stepSelect.value = "";
         el.stepPreview.textContent = dialog.fields.map((f) => `${f.label}: ${text(obj[f.key])}`).join("\n");
+        el.prevStepPreview.textContent = prevObj
+          ? dialog.fields.map((f) => `${f.label}: ${text(prevObj[f.key])}`).join("\n")
+          : "前回データなし";
         el.prevStepBtn.disabled = dialog.step === 0;
         requestAnimationFrame(() => el.stepSelect.focus());
       }
@@ -1369,9 +1431,13 @@
         const stamp = new Date().toISOString().replace(/[:.]/g, "-");
         const fileName = `月次タイヤ点検_${stamp}.csv`;
         const content = "\uFEFF" + csv;
+        const previousSnapshot = normalizeCurrent(JSON.parse(JSON.stringify(current)));
 
         if (await writeCsvToConfiguredDirectory(fileName, content)) {
-          showToast(`CSVを指定フォルダ(${exportDirName || "選択先"})に保存しました`);
+          previous = previousSnapshot;
+          savePrevious();
+          resetCurrent({ confirm: false, toast: false });
+          showToast(`CSVを指定フォルダ(${exportDirName || "選択先"})に保存し、入力をリセットしました`);
           return;
         }
 
@@ -1384,11 +1450,16 @@
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        showToast(exportDirName ? "指定フォルダへ保存できず、通常ダウンロードしました" : "CSVを出力しました");
+        previous = previousSnapshot;
+        savePrevious();
+        resetCurrent({ confirm: false, toast: false });
+        showToast(exportDirName ? "指定フォルダへ保存できず通常ダウンロードし、入力をリセットしました" : "CSVを出力し、入力をリセットしました");
       }
 
-      function resetCurrent() {
-        if (!window.confirm("現在の入力内容をリセットします。よろしいですか？")) return;
+      function resetCurrent(options = {}) {
+        const doConfirm = options.confirm !== false;
+        const doToast = options.toast !== false;
+        if (doConfirm && !window.confirm("現在の入力内容をリセットします。よろしいですか？")) return false;
         const truckType = current.truckType;
         closeDialog();
         current = defaultCurrent();
@@ -1399,7 +1470,8 @@
         buildTires();
         currentScreen = FLOW_SCREENS.BASIC;
         renderAll();
-        showToast("現在入力をリセットしました");
+        if (doToast) showToast("現在入力をリセットしました");
+        return true;
       }
 
       function applyTheme(theme) {
@@ -1653,7 +1725,6 @@
         });
         el.exportCsvBtn.addEventListener("click", () => { void exportCsv(); });
         el.quickResetBtn.addEventListener("click", resetCurrent);
-        el.resetBtn.addEventListener("click", resetCurrent);
         el.openSettingsBtn.addEventListener("click", openSettingsDialog);
         el.closeSettingsBtn.addEventListener("click", closeSettingsDialog);
         el.themeMode.addEventListener("change", (ev) => setTheme(ev.target.value));
