@@ -1006,6 +1006,7 @@
       let currentScreen = FLOW_SCREENS.BASIC;
       let screenBeforeSettings = FLOW_SCREENS.BASIC;
       const SHARE_REASONS = { OK: "ok", CANCEL: "cancel", UNSUPPORTED: "unsupported", ERROR: "error" };
+      const CLOUD_SYNC_ON_SUBMIT_ONLY = true;
       const buildCloudPayload = (source = "input") => ({
         source,
         savedAt: new Date().toISOString(),
@@ -1016,6 +1017,7 @@
         truckTypes: truckTypes.slice()
       });
       const scheduleCloudSync = (source = "input") => {
+        if (CLOUD_SYNC_ON_SUBMIT_ONLY) return;
         if (!window.FirebaseCloudSync || typeof window.FirebaseCloudSync.schedule !== "function") return;
         window.FirebaseCloudSync.schedule(source);
       };
