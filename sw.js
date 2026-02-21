@@ -1,9 +1,11 @@
-const CACHE_NAME = "monthly-tire-check-v7";
+const CACHE_NAME = "monthly-tire-check-v9";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./sw.js",
+  "./firebase/firebase-config.js",
+  "./firebase/firebase-cloud-sync.js",
   "./icons/tire-192.png",
   "./icons/tire-512.png"
 ];
@@ -30,6 +32,21 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+
+  // Firebase runtime config must be fresh (avoid stale SW cache)
+  if (url.pathname.endsWith("/firebase/firebase-config.js")) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   if (event.request.mode === "navigate") {
     event.respondWith(

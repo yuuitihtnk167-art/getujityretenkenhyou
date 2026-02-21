@@ -789,6 +789,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="./firebase/firebase-config.js"></script>
+  <script src="./firebase/firebase-cloud-sync.js"></script>
   <script>
     (() => {
       "use strict";
@@ -1004,25 +1006,51 @@
       let currentScreen = FLOW_SCREENS.BASIC;
       let screenBeforeSettings = FLOW_SCREENS.BASIC;
       const SHARE_REASONS = { OK: "ok", CANCEL: "cancel", UNSUPPORTED: "unsupported", ERROR: "error" };
+      const buildCloudPayload = (source = "input") => ({
+        source,
+        savedAt: new Date().toISOString(),
+        current: normalizeCurrent(current),
+        previous: previous ? normalizeCurrent(previous) : null,
+        vehicles: vehicles.slice(),
+        drivers: drivers.slice(),
+        truckTypes: truckTypes.slice()
+      });
+      const scheduleCloudSync = (source = "input") => {
+        if (!window.FirebaseCloudSync || typeof window.FirebaseCloudSync.schedule !== "function") return;
+        window.FirebaseCloudSync.schedule(source);
+      };
 
       const saveCurrent = () => {
         current.updatedAt = new Date().toISOString();
         localStorage.setItem(STORAGE.current, JSON.stringify(current));
+        scheduleCloudSync("input");
       };
       const savePrevious = () => {
         if (!previous) {
           localStorage.removeItem(STORAGE.previous);
+          scheduleCloudSync("previous");
           return;
         }
         localStorage.setItem(STORAGE.previous, JSON.stringify(previous));
+        scheduleCloudSync("previous");
       };
-      const saveVehicles = () => localStorage.setItem(STORAGE.vehicles, JSON.stringify(vehicles));
-      const saveDrivers = () => localStorage.setItem(STORAGE.drivers, JSON.stringify(drivers));
-      const saveTruckTypes = () => localStorage.setItem(STORAGE.truckTypes, JSON.stringify(truckTypes));
+      const saveVehicles = () => {
+        localStorage.setItem(STORAGE.vehicles, JSON.stringify(vehicles));
+        scheduleCloudSync("master");
+      };
+      const saveDrivers = () => {
+        localStorage.setItem(STORAGE.drivers, JSON.stringify(drivers));
+        scheduleCloudSync("master");
+      };
+      const saveTruckTypes = () => {
+        localStorage.setItem(STORAGE.truckTypes, JSON.stringify(truckTypes));
+        scheduleCloudSync("master");
+      };
       const saveExportDirName = (name) => {
         exportDirName = name || "";
         if (exportDirName) localStorage.setItem(STORAGE.exportDirName, exportDirName);
         else localStorage.removeItem(STORAGE.exportDirName);
+        scheduleCloudSync("settings");
       };
 
       const canPickDirectory = () => typeof window.showDirectoryPicker === "function";
@@ -1659,6 +1687,9 @@
         const fileName = `月次タイヤ点検_${driverPart}_${stamp}.csv`;
         const content = "\uFEFF" + csv;
         const previousSnapshot = normalizeCurrent(JSON.parse(JSON.stringify(current)));
+        if (window.FirebaseCloudSync && typeof window.FirebaseCloudSync.saveNow === "function") {
+          await window.FirebaseCloudSync.saveNow("submit");
+        }
 
         if (await writeCsvToConfiguredDirectory(fileName, content)) {
           previous = previousSnapshot;
@@ -2058,6 +2089,11 @@
       }
 
       function init() {
+        if (window.FirebaseCloudSync && typeof window.FirebaseCloudSync.init === "function") {
+          void window.FirebaseCloudSync.init({
+            getPayload: () => buildCloudPayload("autosave")
+          });
+        }
         initTheme();
         current.inspectionDate = today();
         if (!current.driverName && drivers.length > 0) current.driverName = drivers[0];
