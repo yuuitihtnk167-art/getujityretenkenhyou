@@ -76,7 +76,7 @@
       backdrop-filter: blur(8px);
       box-shadow: var(--shadow);
     }
-    h1 { margin: 0; font-size: clamp(1rem, 2vw, 1.2rem); }
+    h1 { margin: 0; font-size: clamp(1.5rem, 3vw, 1.8rem); }
     .sub { margin: 2px 0 0; color: var(--muted); font-size: .84rem; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn {
@@ -161,6 +161,7 @@
     .layout {
       display: grid;
       grid-template-columns: 1fr minmax(170px, 2fr) 1fr;
+      grid-template-rows: 1fr auto;
       gap: 10px;
       border: 1px solid var(--line);
       border-radius: 12px;
@@ -212,16 +213,9 @@
     .tire.partial { background: color-mix(in srgb, var(--warn) 34%, var(--surface2)); border-color: color-mix(in srgb, var(--warn) 70%, var(--line)); }
     .tire.done { background: color-mix(in srgb, var(--ok) 35%, var(--surface2)); border-color: color-mix(in srgb, var(--ok) 70%, var(--line)); }
     .spare {
-      margin-top: 12px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 12px;
-      background: var(--surface2);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+      grid-column: 2;
+      width: 100%;
+      align-self: start;
     }
     .muted { color: var(--muted); font-size: .84rem; }
     .summary {
@@ -433,7 +427,7 @@
       .basic-meta .field-driver,
       .basic-meta .field-vehicle,
       .basic-meta .field-mode { grid-area: auto; }
-      .layout { grid-template-columns: 1fr minmax(130px, 1.2fr) 1fr; gap: 8px; }
+      .layout { grid-template-columns: 1fr minmax(130px, 1.2fr) 1fr; grid-template-rows: 1fr auto; gap: 8px; }
       .tire { min-height: 58px; }
       .screen-actions .btn { flex-basis: 100%; }
     }
@@ -455,7 +449,7 @@
         <div class="panel-body">
           <div class="meta basic-meta">
             <div class="field field-date">
-              <label for="inspectionDate">点検日（カレンダー選択）</label>
+              <label for="inspectionDate">点検日</label>
               <input id="inspectionDate" type="date">
             </div>
             <div class="field field-driver">
@@ -471,11 +465,10 @@
               </select>
             </div>
             <div class="field field-mode">
-              <label>車種切替</label>
-              <div class="mode-switch">
-                <button id="mode12Btn" class="btn mode-btn active" type="button">大型低床</button>
-                <button id="mode10Btn" class="btn mode-btn" type="button">大型10輪</button>
-              </div>
+              <label for="truckType">車種</label>
+              <select id="truckType">
+                <option value="">選択してください</option>
+              </select>
             </div>
           </div>
         </div>
@@ -493,12 +486,9 @@
             <div id="leftTires" class="col"></div>
             <div id="truckAxes" class="truck"></div>
             <div id="rightTires" class="col"></div>
-          </div>
-          <div class="spare">
-            <div>
-              <div><strong>スペアタイヤ</strong></div>
+            <div class="spare">
+              <button id="spareButton" class="tire" type="button">スペア</button>
             </div>
-            <button id="spareButton" class="tire" type="button">スペア</button>
           </div>
           <div class="truck-actions">
             <button id="truckToExportBtn" class="btn primary" type="button">点検完了</button>
@@ -599,6 +589,17 @@
           <label>登録済み乗務員</label>
           <div id="driverList" class="vehicle-list"></div>
         </div>
+        <div class="field">
+          <label for="newTruckType">車種を登録</label>
+          <div class="row">
+            <select id="newTruckType" class="sel"></select>
+            <button id="addTruckTypeBtn" class="btn primary" type="button">登録</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>登録済み車種</label>
+          <div id="truckTypeList" class="vehicle-list"></div>
+        </div>
       </div>
       <div class="modal-foot">
         <button id="closeSettingsBtn" class="btn primary" type="button">閉じる</button>
@@ -615,6 +616,7 @@
         current: "tire.monthly.current.v1",
         vehicles: "tire.monthly.vehicles.v1",
         drivers: "tire.monthly.drivers.v1",
+        truckTypes: "tire.monthly.trucktypes.v1",
         exportDirName: "tire.monthly.export.dirname.v1",
         theme: "tire.monthly.theme.v1"
       };
@@ -623,6 +625,10 @@
         LOW12: "low12",
         TEN10: "ten10"
       };
+      const TRUCK_TYPE_CATALOG = [
+        { value: TRUCK_TYPES.LOW12, label: "大型低床" },
+        { value: TRUCK_TYPES.TEN10, label: "大型10輪" }
+      ];
       const FLOW_SCREENS = {
         BASIC: "basic",
         TRUCK: "truck",
@@ -637,12 +643,12 @@
         [TRUCK_TYPES.LOW12]: {
           left: [[1], [3], [5, 7], [9, 11]],
           right: [[2], [4], [6, 8], [10, 12]],
-          axes: ["前輪", "第2軸", "第3軸（ダブル）", "第4軸（ダブル）"]
+          axes: ["前輪", "2軸", "3軸", "4軸"]
         },
         [TRUCK_TYPES.TEN10]: {
           left: [[1], [3, 5], [7, 9]],
           right: [[2], [4, 6], [8, 10]],
-          axes: ["前輪", "第2軸（ダブル）", "第3軸（ダブル）"]
+          axes: ["前輪", "2軸", "3軸"]
         }
       };
 
@@ -668,8 +674,7 @@
         inspectionDate: document.getElementById("inspectionDate"),
         driverName: document.getElementById("driverName"),
         vehicleNumber: document.getElementById("vehicleNumber"),
-        mode12Btn: document.getElementById("mode12Btn"),
-        mode10Btn: document.getElementById("mode10Btn"),
+        truckType: document.getElementById("truckType"),
         basicNextBtn: document.getElementById("basicNextBtn"),
         leftTires: document.getElementById("leftTires"),
         rightTires: document.getElementById("rightTires"),
@@ -705,11 +710,25 @@
         newDriverName: document.getElementById("newDriverName"),
         addDriverBtn: document.getElementById("addDriverBtn"),
         driverList: document.getElementById("driverList"),
+        newTruckType: document.getElementById("newTruckType"),
+        addTruckTypeBtn: document.getElementById("addTruckTypeBtn"),
+        truckTypeList: document.getElementById("truckTypeList"),
         toast: document.getElementById("toast")
       };
 
-      const today = () => new Date().toISOString().slice(0, 10);
+      const today = () => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      };
       const normalizeTruckType = (type) => type === TRUCK_TYPES.TEN10 ? TRUCK_TYPES.TEN10 : TRUCK_TYPES.LOW12;
+      const truckTypeLabel = (type) => {
+        const found = TRUCK_TYPE_CATALOG.find((item) => item.value === type);
+        return found ? found.label : truckTypeLabel(normalizeTruckType(type));
+      };
+      const sortTruckTypes = (rows) => TRUCK_TYPE_CATALOG.map((item) => item.value).filter((value) => rows.includes(value));
       const getLayout = (type) => TRUCK_LAYOUTS[normalizeTruckType(type)];
       const getActiveIds = (type) => {
         const layout = getLayout(type);
@@ -769,10 +788,21 @@
         });
         return uniq.slice(0, 300);
       };
+      const normalizeTruckTypes = (rows) => {
+        if (!Array.isArray(rows)) return sortTruckTypes(TRUCK_TYPE_CATALOG.map((item) => item.value));
+        const uniq = [];
+        rows.forEach((item) => {
+          if (!TRUCK_TYPE_CATALOG.some((type) => type.value === item)) return;
+          if (!uniq.includes(item)) uniq.push(item);
+        });
+        const sorted = sortTruckTypes(uniq);
+        return sorted.length > 0 ? sorted : sortTruckTypes(TRUCK_TYPE_CATALOG.map((item) => item.value));
+      };
 
       let current = normalizeCurrent(read(STORAGE.current, defaultCurrent()));
       let vehicles = normalizeVehicles(read(STORAGE.vehicles, []));
       let drivers = normalizeVehicles(read(STORAGE.drivers, []));
+      let truckTypes = normalizeTruckTypes(read(STORAGE.truckTypes, TRUCK_TYPE_CATALOG.map((item) => item.value)));
       let tireButtons = {};
       let exportDirHandle = null;
       let exportDirName = localStorage.getItem(STORAGE.exportDirName) || "";
@@ -785,6 +815,7 @@
       };
       const saveVehicles = () => localStorage.setItem(STORAGE.vehicles, JSON.stringify(vehicles));
       const saveDrivers = () => localStorage.setItem(STORAGE.drivers, JSON.stringify(drivers));
+      const saveTruckTypes = () => localStorage.setItem(STORAGE.truckTypes, JSON.stringify(truckTypes));
       const saveExportDirName = (name) => {
         exportDirName = name || "";
         if (exportDirName) localStorage.setItem(STORAGE.exportDirName, exportDirName);
@@ -870,6 +901,10 @@
         drivers.unshift(current.driverName);
         saveDrivers();
       }
+      if (!truckTypes.includes(current.truckType)) {
+        current.truckType = truckTypes[0] || TRUCK_TYPES.LOW12;
+        saveCurrent();
+      }
 
       const fillCount = (obj, fields) => fields.reduce((sum, f) => sum + (obj[f.key] ? 1 : 0), 0);
       const totalCount = () => getActiveIds(current.truckType).reduce((sum, id) => sum + fillCount(current.tires[id], NORMAL_FIELDS), 0) + fillCount(current.spare, SPARE_FIELDS);
@@ -892,12 +927,6 @@
       };
 
       const text = (v) => v || "未入力";
-
-      function renderTruckTypeButtons() {
-        const isLow12 = current.truckType === TRUCK_TYPES.LOW12;
-        el.mode12Btn.classList.toggle("active", isLow12);
-        el.mode10Btn.classList.toggle("active", !isLow12);
-      }
 
       function renderScreens() {
         const basic = currentScreen === FLOW_SCREENS.BASIC;
@@ -954,6 +983,19 @@
         el.vehicleNumber.value = selected;
       }
 
+      function renderTruckTypeSelect() {
+        const selected = normalizeTruckType(current.truckType);
+        el.truckType.innerHTML = "";
+        el.truckType.appendChild(new Option("選択してください", ""));
+        truckTypes.forEach((truckType) => {
+          el.truckType.appendChild(new Option(truckTypeLabel(truckType), truckType));
+        });
+        if (selected && !truckTypes.includes(selected)) {
+          el.truckType.appendChild(new Option(truckTypeLabel(selected), selected));
+        }
+        el.truckType.value = selected;
+      }
+
       function renderVehicleList() {
         el.vehicleList.innerHTML = "";
         if (vehicles.length === 0) {
@@ -1006,6 +1048,48 @@
         });
       }
 
+      function renderTruckTypeCatalogSelect() {
+        const options = TRUCK_TYPE_CATALOG.filter((item) => !truckTypes.includes(item.value));
+        el.newTruckType.innerHTML = "";
+        if (options.length === 0) {
+          el.newTruckType.appendChild(new Option("登録可能な車種はありません", ""));
+          el.newTruckType.value = "";
+          el.addTruckTypeBtn.disabled = true;
+          return;
+        }
+        el.newTruckType.appendChild(new Option("選択してください", ""));
+        options.forEach((item) => {
+          el.newTruckType.appendChild(new Option(item.label, item.value));
+        });
+        el.newTruckType.value = "";
+        el.addTruckTypeBtn.disabled = false;
+      }
+
+      function renderTruckTypeList() {
+        el.truckTypeList.innerHTML = "";
+        if (truckTypes.length === 0) {
+          el.truckTypeList.innerHTML = '<div class="empty">登録済み車種はありません。</div>';
+          return;
+        }
+        truckTypes.forEach((truckType) => {
+          const row = document.createElement("div");
+          row.className = "vehicle-item";
+
+          const label = document.createElement("span");
+          label.textContent = truckTypeLabel(truckType);
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "mini-btn";
+          remove.textContent = "削除";
+          remove.dataset.truckType = truckType;
+
+          row.appendChild(label);
+          row.appendChild(remove);
+          el.truckTypeList.appendChild(row);
+        });
+      }
+
       function renderSettings() {
         const mode = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
         el.themeMode.value = mode;
@@ -1022,12 +1106,15 @@
         }
         renderVehicleList();
         renderDriverList();
+        renderTruckTypeCatalogSelect();
+        renderTruckTypeList();
       }
 
       function renderMeta() {
         el.inspectionDate.value = current.inspectionDate;
         renderDriverNameSelect();
         renderVehicleNumberSelect();
+        renderTruckTypeSelect();
       }
 
       function renderAll() {
@@ -1036,7 +1123,6 @@
         renderScreens();
         renderExportSummary();
         renderReportNote();
-        renderTruckTypeButtons();
         renderButtons();
       }
 
@@ -1304,6 +1390,10 @@
       }
 
       function setTruckType(type) {
+        if (!truckTypes.includes(type)) {
+          renderTruckTypeSelect();
+          return;
+        }
         const next = normalizeTruckType(type);
         if (current.truckType === next) return;
         current.truckType = next;
@@ -1397,6 +1487,55 @@
         showToast("乗務員を削除しました");
       }
 
+      function addTruckType() {
+        const value = String(el.newTruckType.value || "").trim();
+        if (!value) {
+          showToast("車種を選択してください");
+          return;
+        }
+        if (truckTypes.includes(value)) {
+          showToast("同じ車種は登録済みです");
+          return;
+        }
+
+        truckTypes = sortTruckTypes(truckTypes.concat(value));
+        saveTruckTypes();
+
+        if (!truckTypes.includes(current.truckType)) {
+          current.truckType = value;
+          saveCurrent();
+          closeDialog();
+          buildTires();
+        }
+
+        renderAll();
+        showToast("車種を登録しました");
+      }
+
+      function removeTruckType(value) {
+        const index = truckTypes.indexOf(value);
+        if (index < 0) return;
+        if (truckTypes.length <= 1) {
+          showToast("車種は1件以上登録してください");
+          return;
+        }
+        if (!window.confirm(`「${truckTypeLabel(value)}」を削除しますか？`)) return;
+
+        truckTypes.splice(index, 1);
+        truckTypes = sortTruckTypes(truckTypes);
+        saveTruckTypes();
+
+        if (current.truckType === value) {
+          current.truckType = truckTypes[0] || TRUCK_TYPES.LOW12;
+          saveCurrent();
+          closeDialog();
+          buildTires();
+        }
+
+        renderAll();
+        showToast("車種を削除しました");
+      }
+
       function buildTires() {
         const layout = getLayout(current.truckType);
         const rowCount = layout.axes.length;
@@ -1456,8 +1595,7 @@
           saveCurrent();
           renderAll();
         });
-        el.mode12Btn.addEventListener("click", () => setTruckType(TRUCK_TYPES.LOW12));
-        el.mode10Btn.addEventListener("click", () => setTruckType(TRUCK_TYPES.TEN10));
+        el.truckType.addEventListener("change", (ev) => setTruckType(ev.target.value));
         el.basicNextBtn.addEventListener("click", () => {
           if (!isBasicInfoReady()) {
             showToast("基本情報をすべて設定してください");
@@ -1499,6 +1637,7 @@
           ev.preventDefault();
           addDriverName();
         });
+        el.addTruckTypeBtn.addEventListener("click", addTruckType);
         el.vehicleList.addEventListener("click", (ev) => {
           const target = ev.target;
           if (!(target instanceof HTMLButtonElement)) return;
@@ -1512,6 +1651,13 @@
           const driver = target.dataset.driver;
           if (!driver) return;
           removeDriverName(driver);
+        });
+        el.truckTypeList.addEventListener("click", (ev) => {
+          const target = ev.target;
+          if (!(target instanceof HTMLButtonElement)) return;
+          const truckType = target.dataset.truckType;
+          if (!truckType) return;
+          removeTruckType(truckType);
         });
         el.dialogCloseBtn.addEventListener("click", closeDialog);
         el.closeStepBtn.addEventListener("click", closeDialog);
@@ -1536,9 +1682,10 @@
 
       function init() {
         initTheme();
-        if (!current.inspectionDate) current.inspectionDate = today();
+        current.inspectionDate = today();
         if (!current.driverName && drivers.length > 0) current.driverName = drivers[0];
         if (!current.vehicleNumber && vehicles.length > 0) current.vehicleNumber = vehicles[0];
+        if (!truckTypes.includes(current.truckType)) current.truckType = truckTypes[0] || TRUCK_TYPES.LOW12;
         currentScreen = FLOW_SCREENS.BASIC;
         buildTires();
         bindEvents();
