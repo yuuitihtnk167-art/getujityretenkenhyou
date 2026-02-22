@@ -2,10 +2,10 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Start static server (8080)",
+      "label": "Start static server (8081)",
       "type": "process",
       "command": "py",
-      "args": ["-m", "http.server", "8080"],
+      "args": ["-m", "http.server", "8081"],
       "isBackground": true,
       "problemMatcher": {
         "owner": "custom",
@@ -15,7 +15,7 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": ".",
-          "endsPattern": "Serving HTTP on .+ port 8080"
+          "endsPattern": "Serving HTTP on .+ port 8081"
         }
       },
       "presentation": {
@@ -26,13 +26,13 @@
       }
     },
     {
-      "label": "Stop static server (8080)",
+      "label": "Stop static server (8081)",
       "type": "process",
       "command": "powershell",
       "args": [
         "-NoProfile",
         "-Command",
-        "$lines = netstat -ano | Select-String ':8080'; $procIds = @(); foreach($line in $lines){ $parts = ($line.ToString() -split '\\s+') | Where-Object { $_ }; if($parts.Length -ge 5 -and $parts[3] -eq 'LISTENING'){ $procIds += $parts[4] } }; $procIds = $procIds | Sort-Object -Unique; foreach($procId in $procIds){ Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue }; exit 0"
+        "$lines = netstat -ano | Select-String ':8081'; $procIds = @(); foreach($line in $lines){ $parts = ($line.ToString() -split '\\s+') | Where-Object { $_ }; if($parts.Length -ge 5 -and $parts[3] -eq 'LISTENING'){ $procIds += $parts[4] } }; $procIds = $procIds | Sort-Object -Unique; foreach($procId in $procIds){ Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue }; exit 0"
       ],
       "problemMatcher": []
     }

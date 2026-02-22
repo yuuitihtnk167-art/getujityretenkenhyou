@@ -4,11 +4,11 @@
     {
       "type": "chrome",
       "request": "launch",
-      "name": "Chrome: localhost:8080",
-      "url": "http://localhost:8080",
+      "name": "Chrome: localhost:8081",
+      "url": "http://localhost:8081",
       "webRoot": "${workspaceFolder}",
-      "preLaunchTask": "Start static server (8080)",
-      "postDebugTask": "Stop static server (8080)"
+      "preLaunchTask": "Start static server (8081)",
+      "postDebugTask": "Stop static server (8081)"
     }
   ]
 }
