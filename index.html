@@ -622,7 +622,7 @@
       border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
       border-radius: 20px;
       padding: 14px 18px;
-      font-size: 2.25rem;
+      font-size: calc(2.25rem * 0.9);
       line-height: 1.15;
       font-weight: 800;
       text-align: center;
@@ -647,7 +647,7 @@
       border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
       border-radius: 24px;
       padding: 18px 24px;
-      font-size: 4.5rem;
+      font-size: calc(2.25rem * 0.9);
       line-height: 1.15;
       text-align: center;
       white-space: normal;
@@ -659,7 +659,7 @@
       width: min(92vw, 760px);
       border-radius: 20px;
       padding: 14px 18px;
-      font-size: 2.25rem;
+      font-size: calc(2.25rem * 0.9);
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     @media (max-width: 860px) {
@@ -2061,7 +2061,7 @@
         el.truckBackBtn.addEventListener("click", () => setFlowScreen(FLOW_SCREENS.BASIC));
         el.truckToExportBtn.addEventListener("click", () => {
           if (!isInspectionComplete()) {
-            showToast("未入力があります。すべて入力してください。");
+            showToast("未入力があります　すべて入力してください");
             return;
           }
           setFlowScreen(FLOW_SCREENS.EXPORT);
