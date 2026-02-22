@@ -33,6 +33,8 @@
       --tap: 56px;
       --radius: 12px;
       --shadow: 0 10px 24px rgba(20, 44, 72, 0.18);
+      --mobile-fit-scale: 1;
+      --bottom-dock-space: 110px;
     }
     html[data-theme="dark"],
     body[data-theme="dark"] {
@@ -67,7 +69,7 @@
       -webkit-tap-highlight-color: transparent;
     }
     body {
-      padding-bottom: 110px;
+      padding-bottom: var(--bottom-dock-space);
     }
     .wrap { width: min(1100px, 94vw); margin: 14px auto 36px; }
     .header {
@@ -85,7 +87,7 @@
       backdrop-filter: blur(8px);
       box-shadow: var(--shadow);
     }
-    h1 { margin: 0; font-size: clamp(2.25rem, 4.5vw, 2.7rem); }
+    h1 { margin: 0; font-size: clamp(calc(2.25rem * var(--mobile-fit-scale)), calc(4.5vw * var(--mobile-fit-scale)), calc(2.7rem * var(--mobile-fit-scale))); }
     .sub { margin: 2px 0 0; color: var(--muted); font-size: .84rem; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn {
@@ -177,7 +179,7 @@
     .basic-meta .field-mode { grid-area: mode; }
     .field { display: grid; gap: 6px; }
     .field label { font-size: .84rem; color: var(--muted); font-weight: 700; }
-    #basicScreen .basic-meta .field label { font-size: 1.68rem; }
+    #basicScreen .basic-meta .field label { font-size: calc(1.68rem * var(--mobile-fit-scale)); }
     .export-note-field > label { font-size: 1rem; color: var(--text); font-weight: 700; }
     .field input,
     .field select,
@@ -210,29 +212,29 @@
     }
     #basicScreen .basic-meta #inspectionDate,
     #basicScreen .basic-meta .basic-value {
-      font-size: 2rem;
+      font-size: calc(2rem * var(--mobile-fit-scale));
     }
     #basicNextBtn,
     #quickResetBtn,
     #openSettingsBtn {
-      font-size: 1.9rem;
+      font-size: calc(1.9rem * var(--mobile-fit-scale));
     }
     #truckToExportBtn,
     #truckBackBtn {
-      font-size: 2.04rem;
+      font-size: calc(2.04rem * var(--mobile-fit-scale));
     }
     #exportCsvBtn,
     #exportBackBtn {
-      font-size: 2.1rem;
+      font-size: calc(2.1rem * var(--mobile-fit-scale));
     }
     #exportScreen .export-note-field > label {
-      font-size: 2rem;
+      font-size: calc(2rem * var(--mobile-fit-scale));
     }
     #reportNote {
-      font-size: 2rem;
+      font-size: calc(2rem * var(--mobile-fit-scale));
     }
     #reportNote::placeholder {
-      font-size: 2rem;
+      font-size: calc(2rem * var(--mobile-fit-scale));
     }
     .field textarea {
       min-height: 120px;
@@ -410,6 +412,11 @@
       min-height: calc(100vh - 230px);
       display: flex;
       flex-direction: column;
+    }
+    @supports (height: 100dvh) {
+      body.screen-truck #truckScreen .panel-body {
+        min-height: calc(100dvh - 230px);
+      }
     }
     body.screen-truck #truckScreen .layout {
       flex: 1;
@@ -1697,6 +1704,55 @@
         applyTheme(next);
       }
 
+      function updateMobileFitScale() {
+        const active = document.activeElement;
+        const tag = active && active.tagName ? active.tagName : "";
+        const editing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+        if (editing) return;
+
+        const viewport = window.visualViewport;
+        const width = Math.round(viewport && viewport.width ? viewport.width : window.innerWidth);
+        const height = Math.round(viewport && viewport.height ? viewport.height : window.innerHeight);
+        const coarsePointer = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+        const smallViewport = width <= 900;
+
+        if (!coarsePointer || !smallViewport) {
+          document.documentElement.style.setProperty("--mobile-fit-scale", "1");
+          document.documentElement.style.setProperty("--bottom-dock-space", "110px");
+          return;
+        }
+
+        const minScale = 0.72;
+        const widthScale = Math.min(1, Math.max(minScale, width / 420));
+        const heightScale = Math.min(1, Math.max(minScale, height / 900));
+        const scale = Math.max(minScale, Math.min(widthScale, heightScale));
+        const standaloneMode = (
+          window.matchMedia &&
+          (
+            window.matchMedia("(display-mode: standalone)").matches ||
+            window.matchMedia("(display-mode: fullscreen)").matches ||
+            window.matchMedia("(display-mode: minimal-ui)").matches
+          )
+        ) || (typeof window.navigator.standalone === "boolean" && window.navigator.standalone === true);
+        const dockBase = standaloneMode ? 102 : 110;
+        const dockSpace = Math.round(dockBase * scale);
+
+        document.documentElement.style.setProperty("--mobile-fit-scale", scale.toFixed(3));
+        document.documentElement.style.setProperty("--bottom-dock-space", `${dockSpace}px`);
+      }
+
+      function bindMobileFitScale() {
+        updateMobileFitScale();
+        window.addEventListener("resize", updateMobileFitScale, { passive: true });
+        window.addEventListener("orientationchange", updateMobileFitScale, { passive: true });
+        if (window.visualViewport && typeof window.visualViewport.addEventListener === "function") {
+          window.visualViewport.addEventListener("resize", updateMobileFitScale, { passive: true });
+        }
+        document.addEventListener("focusout", () => {
+          window.setTimeout(updateMobileFitScale, 0);
+        });
+      }
+
       function setDriverName(name) {
         const next = String(name || "").trim();
         if (next && !drivers.includes(next)) return;
@@ -2021,6 +2077,7 @@
         }
         cleanupLegacyExportDirectoryStorage();
         initTheme();
+        bindMobileFitScale();
         if (!current.inspectionDate) current.inspectionDate = today();
         if (!truckTypes.includes(current.truckType)) current.truckType = truckTypes[0] || TRUCK_TYPES.LOW12;
         currentScreen = FLOW_SCREENS.BASIC;
