@@ -133,7 +133,7 @@
     }
     .panel-body { padding: 12px; }
     #truckScreen .panel {
-      margin-top: 0;
+      margin-top: 12px;
       border: none;
       border-radius: 0;
       background: transparent;
@@ -160,7 +160,10 @@
       min-height: 393.3px;
     }
     .export-actions {
+      margin-top: 12px;
       padding: 0 10px 10px;
+      display: grid;
+      gap: 8px;
     }
     .meta {
       display: grid;
@@ -213,6 +216,13 @@
     #basicScreen .basic-meta #inspectionDate,
     #basicScreen .basic-meta .basic-value {
       font-size: calc(2rem * var(--mobile-fit-scale));
+    }
+    #basicScreen .basic-meta .basic-value {
+      min-height: var(--tap);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: var(--surface2);
     }
     #basicNextBtn,
     #quickResetBtn,
@@ -409,13 +419,13 @@
       width: min(1320px, 98vw);
     }
     body.screen-truck #truckScreen .panel-body {
-      min-height: calc(100vh - 230px);
+      min-height: calc(100vh - 242px);
       display: flex;
       flex-direction: column;
     }
     @supports (height: 100dvh) {
       body.screen-truck #truckScreen .panel-body {
-        min-height: calc(100dvh - 230px);
+        min-height: calc(100dvh - 242px);
       }
     }
     body.screen-truck #truckScreen .layout {
