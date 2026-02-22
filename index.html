@@ -664,6 +664,36 @@
       white-space: pre-line;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .send-farewell {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding:
+        max(8px, env(safe-area-inset-top))
+        max(8px, env(safe-area-inset-right))
+        max(8px, env(safe-area-inset-bottom))
+        max(8px, env(safe-area-inset-left));
+      background: #050b16;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .18s ease;
+    }
+    .send-farewell.show {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .send-farewell img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
     @media (max-width: 860px) {
       .header { position: static; }
       .meta { grid-template-columns: 1fr; }
@@ -863,6 +893,9 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="sendFarewell" class="send-farewell" aria-hidden="true">
+    <img id="sendFarewellImage" src="icons/getujityretenkenhyou.png" alt="送信ありがとうございました。ご安全に。">
+  </div>
   <script src="./firebase/firebase-config.js?v=20260222-2"></script>
   <script src="./firebase/firebase-cloud-sync.js?v=20260222-2"></script>
   <script>
@@ -965,6 +998,8 @@
         sendConfirmDialog: document.getElementById("sendConfirmDialog"),
         sendFixBtn: document.getElementById("sendFixBtn"),
         sendSubmitBtn: document.getElementById("sendSubmitBtn"),
+        sendFarewell: document.getElementById("sendFarewell"),
+        sendFarewellImage: document.getElementById("sendFarewellImage"),
         themeMode: document.getElementById("themeMode"),
         settingsUpdatedAt: document.getElementById("settingsUpdatedAt"),
         newVehicleNumber: document.getElementById("newVehicleNumber"),
@@ -1644,6 +1679,30 @@
         if (!document.hidden) window.location.replace("about:blank");
       }
 
+      async function showSendFarewell() {
+        if (!el.sendFarewell) return;
+        el.sendFarewell.classList.add("show");
+        el.sendFarewell.setAttribute("aria-hidden", "false");
+
+        const image = el.sendFarewellImage;
+        if (image && !image.complete) {
+          await new Promise((resolve) => {
+            let done = false;
+            const finish = () => {
+              if (done) return;
+              done = true;
+              image.removeEventListener("load", finish);
+              image.removeEventListener("error", finish);
+              resolve();
+            };
+            image.addEventListener("load", finish, { once: true });
+            image.addEventListener("error", finish, { once: true });
+            window.setTimeout(finish, 1200);
+          });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1800));
+      }
+
       async function exportCsv() {
         const rows = [[
           "保存日時", "点検日", "車両番号", "乗務員", "タイヤ番号", "メーカー", "種類", "溝", "偏摩耗", "キズ", "空気圧", "状態", "報告事項"
@@ -1692,6 +1751,7 @@
           downloadCsv(fileName, content);
         }
         resetCurrent({ confirm: false, toast: false });
+        await showSendFarewell();
         await closeApp();
       }
 
