@@ -85,7 +85,7 @@
       backdrop-filter: blur(8px);
       box-shadow: var(--shadow);
     }
-    h1 { margin: 0; font-size: clamp(1.5rem, 3vw, 1.8rem); }
+    h1 { margin: 0; font-size: clamp(2.25rem, 4.5vw, 2.7rem); }
     .sub { margin: 2px 0 0; color: var(--muted); font-size: .84rem; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn {
@@ -177,6 +177,7 @@
     .basic-meta .field-mode { grid-area: mode; }
     .field { display: grid; gap: 6px; }
     .field label { font-size: .84rem; color: var(--muted); font-weight: 700; }
+    #basicScreen .basic-meta .field label { font-size: 1.68rem; }
     .export-note-field > label { font-size: 1rem; color: var(--text); font-weight: 700; }
     .field input,
     .field select,
@@ -206,6 +207,15 @@
     .basic-value.placeholder {
       color: var(--muted);
       font-weight: 600;
+    }
+    #basicScreen .basic-meta #inspectionDate,
+    #basicScreen .basic-meta .basic-value {
+      font-size: 2rem;
+    }
+    #basicNextBtn,
+    #quickResetBtn,
+    #openSettingsBtn {
+      font-size: 1.9rem;
     }
     .field textarea {
       min-height: 120px;
@@ -681,8 +691,6 @@
           <div class="truck-actions">
             <button id="truckToExportBtn" class="btn primary" type="button">点検完了</button>
             <button id="truckBackBtn" class="btn" type="button">基本情報へ戻る</button>
-            <!-- TEMP: 前回データ一括反映（不要になったらこのボタンと関連JSを削除） -->
-            <button id="applyPreviousBtn" class="btn" type="button">前回データをそのまま入力</button>
           </div>
         </div>
       </section>
@@ -893,7 +901,6 @@
         truckAxes: document.getElementById("truckAxes"),
         spareButton: document.getElementById("spareButton"),
         truckBackBtn: document.getElementById("truckBackBtn"),
-        applyPreviousBtn: document.getElementById("applyPreviousBtn"),
         truckToExportBtn: document.getElementById("truckToExportBtn"),
         exportCsvBtn: document.getElementById("exportCsvBtn"),
         exportBackBtn: document.getElementById("exportBackBtn"),
@@ -1146,7 +1153,6 @@
           tireButtons[id].className = `tire ${tireClass(id)}`.trim();
         });
         el.spareButton.className = `tire ${spareClass()}`.trim();
-        if (el.applyPreviousBtn) el.applyPreviousBtn.disabled = !previous;
       }
 
       function renderBasicInfoDisplay() {
@@ -1828,31 +1834,6 @@
         showToast("車種を削除しました");
       }
 
-      // TEMP: 前回データ一括反映（不要になったらこの関数ごと削除）
-      function applyPreviousSnapshotToCurrent() {
-        if (!previous) {
-          showToast("前回データがありません");
-          return;
-        }
-        const prevData = normalizeCurrent(previous);
-        const active = getActiveIds(current.truckType);
-        const activeSet = new Set(active);
-
-        ALL_IDS.forEach((id) => {
-          if (!activeSet.has(id)) {
-            current.tires[id] = newTire();
-            return;
-          }
-          current.tires[id] = { ...newTire(), ...(prevData.tires[id] || {}) };
-        });
-        current.spare = { ...newSpare(), ...(prevData.spare || {}) };
-        current.reportNote = prevData.reportNote || "";
-        saveCurrent();
-        closeDialog();
-        renderAll();
-        showToast("前回データを反映しました");
-      }
-
       function buildTires() {
         const layout = getLayout(current.truckType);
         const rowCount = layout.axes.length;
@@ -1912,7 +1893,6 @@
           setFlowScreen(FLOW_SCREENS.TRUCK);
         });
         el.truckBackBtn.addEventListener("click", () => setFlowScreen(FLOW_SCREENS.BASIC));
-        if (el.applyPreviousBtn) el.applyPreviousBtn.addEventListener("click", applyPreviousSnapshotToCurrent);
         el.truckToExportBtn.addEventListener("click", () => {
           if (!isInspectionComplete()) {
             showToast("未入力があります。すべて入力してください。");
