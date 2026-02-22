@@ -626,6 +626,7 @@
       line-height: 1.15;
       font-weight: 800;
       text-align: center;
+      white-space: pre-line;
       overflow-wrap: anywhere;
       z-index: 40;
       transition: opacity .15s ease, transform .15s ease;
@@ -660,6 +661,7 @@
       border-radius: 20px;
       padding: 14px 18px;
       font-size: calc(2.25rem * 0.9);
+      white-space: pre-line;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     @media (max-width: 860px) {
@@ -2061,7 +2063,7 @@
         el.truckBackBtn.addEventListener("click", () => setFlowScreen(FLOW_SCREENS.BASIC));
         el.truckToExportBtn.addEventListener("click", () => {
           if (!isInspectionComplete()) {
-            showToast("未入力があります　すべて入力してください");
+            showToast("未入力があります\nすべて入力してください");
             return;
           }
           setFlowScreen(FLOW_SCREENS.EXPORT);
