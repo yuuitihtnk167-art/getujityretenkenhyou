@@ -71,6 +71,10 @@
     body {
       padding-bottom: var(--bottom-dock-space);
     }
+    body.tiny-overflow-lock {
+      overflow-y: hidden;
+      overscroll-behavior-y: none;
+    }
     .wrap { width: min(1100px, 94vw); margin: 14px auto 36px; }
     .header {
       position: sticky;
@@ -1182,6 +1186,7 @@
         el.exportScreen.classList.toggle("active", exp);
         el.settingsScreen.classList.toggle("active", settings);
         document.body.classList.toggle("screen-truck", truck);
+        document.body.classList.toggle("screen-export", exp);
         document.body.classList.toggle("screen-settings", settings);
       }
 
@@ -1374,6 +1379,7 @@
         renderExportSummary();
         renderReportNote();
         renderButtons();
+        updateTinyOverflowFix();
       }
 
       function setFlowScreen(screen) {
@@ -1763,6 +1769,32 @@
         await latestCommitFetchPromise;
       }
 
+      function updateTinyOverflowFix() {
+        const body = document.body;
+        if (!body) return;
+        if (currentScreen !== FLOW_SCREENS.EXPORT) {
+          body.classList.remove("tiny-overflow-lock");
+          return;
+        }
+        const active = document.activeElement;
+        const tag = active && active.tagName ? active.tagName : "";
+        const editing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+        if (editing) {
+          body.classList.remove("tiny-overflow-lock");
+          return;
+        }
+        const viewport = window.visualViewport;
+        const viewportHeight = Math.round(viewport && viewport.height ? viewport.height : window.innerHeight);
+        if (!viewportHeight) {
+          body.classList.remove("tiny-overflow-lock");
+          return;
+        }
+        const root = document.documentElement;
+        const overflowPx = Math.ceil(root.scrollHeight - viewportHeight);
+        const tinyOverflow = overflowPx > 0 && overflowPx <= 16;
+        body.classList.toggle("tiny-overflow-lock", tinyOverflow);
+      }
+
       function updateMobileFitScale() {
         const active = document.activeElement;
         const tag = active && active.tagName ? active.tagName : "";
@@ -1778,6 +1810,7 @@
         if (!coarsePointer || !smallViewport) {
           document.documentElement.style.setProperty("--mobile-fit-scale", "1");
           document.documentElement.style.setProperty("--bottom-dock-space", "110px");
+          updateTinyOverflowFix();
           return;
         }
 
@@ -1798,6 +1831,7 @@
 
         document.documentElement.style.setProperty("--mobile-fit-scale", scale.toFixed(3));
         document.documentElement.style.setProperty("--bottom-dock-space", `${dockSpace}px`);
+        updateTinyOverflowFix();
       }
 
       function bindMobileFitScale() {
