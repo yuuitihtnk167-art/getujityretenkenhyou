@@ -117,6 +117,18 @@
       background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface));
       font-weight: 700;
     }
+    .settings-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .settings-updated-at {
+      color: var(--muted);
+      font-size: .8rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
     .panel-body { padding: 12px; }
     #truckScreen .panel {
       margin-top: 0;
@@ -668,7 +680,10 @@
 
     <section id="settingsScreen" class="screen">
       <section class="panel">
-        <div class="panel-head">設定</div>
+        <div class="panel-head settings-head">
+          <span>設定</span>
+          <span id="settingsUpdatedAt" class="settings-updated-at"></span>
+        </div>
         <div class="panel-body settings-body">
           <div class="field">
             <label for="themeMode">表示モード</label>
@@ -788,6 +803,7 @@
         truckTypes: "tire.monthly.trucktypes.v1",
         theme: "tire.monthly.theme.v1"
       };
+      const LAST_COMMIT_PUSHED_AT = "2026-02-22 12:00 +09:00";
 
       const TRUCK_TYPES = {
         LOW12: "low12",
@@ -876,6 +892,7 @@
         sendFixBtn: document.getElementById("sendFixBtn"),
         sendSubmitBtn: document.getElementById("sendSubmitBtn"),
         themeMode: document.getElementById("themeMode"),
+        settingsUpdatedAt: document.getElementById("settingsUpdatedAt"),
         newVehicleNumber: document.getElementById("newVehicleNumber"),
         addVehicleBtn: document.getElementById("addVehicleBtn"),
         vehicleList: document.getElementById("vehicleList"),
@@ -1242,6 +1259,7 @@
       function renderSettings() {
         const mode = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
         el.themeMode.value = mode;
+        if (el.settingsUpdatedAt) el.settingsUpdatedAt.textContent = `更新: ${LAST_COMMIT_PUSHED_AT}`;
         renderVehicleList();
         renderDriverList();
         renderTruckTypeCatalogSelect();
