@@ -188,14 +188,14 @@
     return hashText(raw);
   }
 
-  function buildDocId(uid, monthKey, basicSignature, deviceId) {
+  function buildDocId(monthKey, basicSignature) {
     const prefix = sanitizeId(state.options.documentPrefix, "monthly_tire");
     const company = sanitizeId(state.options.companyCode, "company");
-    const user = sanitizeId(uid, "anon");
-    const device = sanitizeId(deviceId || state.deviceId, "device");
     const month = sanitizeId(monthKey, currentMonthKey());
     const basic = sanitizeId(basicSignature, "basic");
-    return `${prefix}_${company}_${user}_${device}_${month}_${basic}`.slice(0, 200);
+    // Doc identity is month + basic fields only.
+    // UID/device are stored as metadata, not as identity keys.
+    return `${prefix}_${company}_${month}_${basic}`.slice(0, 200);
   }
 
   function getDocInfoForEntry(entry) {
@@ -204,7 +204,7 @@
     const deviceId = state.deviceId || getOrCreateDeviceId();
     const basicInfo = extractBasicInfo(entry);
     const basicSignature = buildBasicSignature(entry);
-    const docId = buildDocId(uid, month, basicSignature, deviceId);
+    const docId = buildDocId(month, basicSignature);
     return { month, uid, deviceId, basicInfo, basicSignature, docId };
   }
 
@@ -277,16 +277,17 @@
     const docRef = getDocRefForEntry(entry);
     if (!ready || !docRef) {
       pushPending(entry);
-      return false;
+      return { ok: false, reason: "firebase_unready", queued: true };
     }
     try {
       log("Saving document", getDocInfoForEntry(entry));
       await docRef.set(toDocData(entry), { merge: true });
-      return true;
+      return { ok: true, reason: "ok", queued: false };
     } catch (error) {
       warn("Firestore write failed, queued locally for retry", error);
       pushPending(entry);
-      return false;
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      return { ok: false, reason: offline ? "offline" : "write_failed", queued: true };
     }
   }
 
@@ -327,17 +328,26 @@
   }
 
   async function saveNow(source) {
-    if (!state.initialized || !state.options || !state.options.enabled) return false;
-    if (typeof state.getPayload !== "function") return false;
+    const result = await saveNowDetailed(source);
+    return result.ok;
+  }
+
+  async function saveNowDetailed(source) {
+    if (!state.initialized || !state.options || !state.options.enabled) {
+      return { ok: false, reason: "disabled", queued: false };
+    }
+    if (typeof state.getPayload !== "function") {
+      return { ok: false, reason: "payload_missing", queued: false };
+    }
     const payload = deepClone(state.getPayload());
     const entry = {
       source: source || "manual",
       clientUpdatedAt: new Date().toISOString(),
       payload
     };
-    const ok = await writeEntry(entry);
-    if (ok) void flushPending();
-    return ok;
+    const result = await writeEntry(entry);
+    if (result.ok) void flushPending();
+    return result;
   }
 
   function bindRetryEvents() {
@@ -387,6 +397,7 @@
     init,
     schedule,
     saveNow,
+    saveNowDetailed,
     previewDocInfo: () => {
       if (typeof state.getPayload !== "function") return null;
       const payload = deepClone(state.getPayload());

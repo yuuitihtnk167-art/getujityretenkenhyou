@@ -774,8 +774,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./firebase/firebase-config.js?v=20260222"></script>
-  <script src="./firebase/firebase-cloud-sync.js?v=20260222"></script>
+  <script src="./firebase/firebase-config.js?v=20260222-2"></script>
+  <script src="./firebase/firebase-cloud-sync.js?v=20260222-2"></script>
   <script>
     (() => {
       "use strict";
@@ -1538,8 +1538,26 @@
         // Keep a reusable snapshot even when share sheet is canceled.
         previous = previousSnapshot;
         savePrevious();
-        if (window.FirebaseCloudSync && typeof window.FirebaseCloudSync.saveNow === "function") {
-          await window.FirebaseCloudSync.saveNow("submit");
+        if (window.FirebaseCloudSync && typeof window.FirebaseCloudSync.saveNowDetailed === "function") {
+          const cloudResult = await window.FirebaseCloudSync.saveNowDetailed("submit");
+          if (!cloudResult.ok && cloudResult.reason !== "disabled" && cloudResult.reason !== "payload_missing") {
+            renderAll();
+            if (cloudResult.reason === "offline") {
+              window.alert("Firebaseに保存できませんでした。圏外またはオフラインの可能性があります。通信回復後に、もう一度「送信」を押してください。");
+            } else {
+              window.alert("Firebaseに保存できませんでした。通信状態を確認して、もう一度「送信」を押してください。");
+            }
+            showToast("Firebase未保存です。再送信してください");
+            return;
+          }
+        } else if (window.FirebaseCloudSync && typeof window.FirebaseCloudSync.saveNow === "function") {
+          const cloudSaved = await window.FirebaseCloudSync.saveNow("submit");
+          if (!cloudSaved) {
+            renderAll();
+            window.alert("Firebaseに保存できませんでした。通信状態を確認して、もう一度「送信」を押してください。");
+            showToast("Firebase未保存です。再送信してください");
+            return;
+          }
         }
 
         const shareResult = await shareCsvFile(fileName, content);
