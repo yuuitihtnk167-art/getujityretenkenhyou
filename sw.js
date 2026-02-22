@@ -1,4 +1,4 @@
-const CACHE_NAME = "monthly-tire-check-v14";
+const CACHE_NAME = "monthly-tire-check-v15";
 const ASSETS = [
   "./",
   "./index.html",
@@ -33,6 +33,12 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
+
+  // GitHub API should always be network-fresh for commit timestamp display.
+  if (url.hostname === "api.github.com") {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   // Firebase runtime files must be fresh (avoid stale SW cache)
   if (

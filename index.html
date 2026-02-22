@@ -872,6 +872,7 @@
         theme: "tire.monthly.theme.v1"
       };
       const LAST_COMMIT_PUSHED_AT = "2026-02-22 12:00";
+      const GITHUB_REPO_API_LATEST_COMMIT = "https://api.github.com/repos/yuuitihtnk167-art/getujityretenkenhyou/commits?sha=main&per_page=1";
 
       const TRUCK_TYPES = {
         LOW12: "low12",
@@ -979,6 +980,16 @@
         const day = String(d.getDate()).padStart(2, "0");
         return `${y}-${m}-${day}`;
       };
+      const formatDateTimeMinute = (value) => {
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return "";
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        return `${y}-${m}-${day} ${hh}:${mm}`;
+      };
       const normalizeTruckType = (type) => type === TRUCK_TYPES.TEN10 ? TRUCK_TYPES.TEN10 : TRUCK_TYPES.LOW12;
       const truckTypeLabel = (type) => {
         const found = TRUCK_TYPE_CATALOG.find((item) => item.value === type);
@@ -1064,6 +1075,9 @@
       let vehicles = normalizeVehicles(read(STORAGE.vehicles, []));
       let drivers = normalizeVehicles(read(STORAGE.drivers, []));
       let truckTypes = normalizeTruckTypes(read(STORAGE.truckTypes, TRUCK_TYPE_CATALOG.map((item) => item.value)));
+      let latestCommitPushedAt = LAST_COMMIT_PUSHED_AT;
+      let latestCommitFetchedAtMs = 0;
+      let latestCommitFetchPromise = null;
       let tireButtons = {};
       let dialog = { target: null, fields: [], step: 0 };
       let currentScreen = FLOW_SCREENS.BASIC;
@@ -1341,7 +1355,7 @@
       function renderSettings() {
         const mode = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
         el.themeMode.value = mode;
-        if (el.settingsUpdatedAt) el.settingsUpdatedAt.textContent = `更新: ${LAST_COMMIT_PUSHED_AT}`;
+        if (el.settingsUpdatedAt) el.settingsUpdatedAt.textContent = `更新: ${latestCommitPushedAt}`;
         renderVehicleList();
         renderDriverList();
         renderTruckTypeCatalogSelect();
@@ -1428,6 +1442,7 @@
 
       function openSettingsDialog() {
         screenBeforeSettings = currentScreen;
+        void refreshLatestCommitPushedAt();
         renderSettings();
         setFlowScreen(FLOW_SCREENS.SETTINGS);
       }
@@ -1712,6 +1727,40 @@
         const next = theme === "dark" ? "dark" : "light";
         localStorage.setItem(STORAGE.theme, next);
         applyTheme(next);
+      }
+
+      async function refreshLatestCommitPushedAt(options = {}) {
+        const force = options.force === true;
+        const now = Date.now();
+        const REFRESH_INTERVAL_MS = 60 * 1000;
+        if (!force && latestCommitFetchedAtMs > 0 && (now - latestCommitFetchedAtMs) < REFRESH_INTERVAL_MS) {
+          return;
+        }
+        if (latestCommitFetchPromise) {
+          await latestCommitFetchPromise;
+          return;
+        }
+        const url = `${GITHUB_REPO_API_LATEST_COMMIT}&t=${now}`;
+        latestCommitFetchPromise = (async () => {
+          try {
+            const response = await fetch(url, { cache: "no-store" });
+            if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+            const data = await response.json();
+            const latest = Array.isArray(data) ? data[0] : data;
+            const iso = latest && latest.commit && latest.commit.committer && latest.commit.committer.date
+              ? latest.commit.committer.date
+              : "";
+            const formatted = formatDateTimeMinute(iso);
+            if (formatted) latestCommitPushedAt = formatted;
+            latestCommitFetchedAtMs = Date.now();
+          } catch (e) {
+            console.warn("Failed to fetch latest commit pushed time:", e);
+          } finally {
+            latestCommitFetchPromise = null;
+            renderSettings();
+          }
+        })();
+        await latestCommitFetchPromise;
       }
 
       function updateMobileFitScale() {
@@ -2088,6 +2137,7 @@
         cleanupLegacyExportDirectoryStorage();
         initTheme();
         bindMobileFitScale();
+        void refreshLatestCommitPushedAt({ force: true });
         if (!current.inspectionDate) current.inspectionDate = today();
         if (!truckTypes.includes(current.truckType)) current.truckType = truckTypes[0] || TRUCK_TYPES.LOW12;
         currentScreen = FLOW_SCREENS.BASIC;
