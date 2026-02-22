@@ -190,6 +190,23 @@
       background: var(--surface2);
       width: 100%;
     }
+    .basic-value {
+      min-height: 1.3em;
+      border: none;
+      border-radius: 0;
+      padding: 0;
+      font-size: 1rem;
+      color: var(--text);
+      background: transparent;
+      display: flex;
+      align-items: center;
+      font-weight: 700;
+      word-break: break-all;
+    }
+    .basic-value.placeholder {
+      color: var(--muted);
+      font-weight: 600;
+    }
     .field textarea {
       min-height: 120px;
       resize: vertical;
@@ -392,6 +409,12 @@
       font-weight: 700;
       word-break: break-all;
     }
+    .vehicle-item-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
     .mini-btn {
       min-height: 42px;
       padding: 8px 12px;
@@ -403,6 +426,15 @@
       color: var(--text);
       cursor: pointer;
       white-space: nowrap;
+    }
+    .mini-btn.show-btn {
+      background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    }
+    .mini-btn.show-btn.active {
+      background: var(--accent);
+      color: var(--text-strong);
+      border-color: color-mix(in srgb, var(--accent) 70%, black);
     }
     dialog {
       border: none;
@@ -616,22 +648,16 @@
               <input id="inspectionDate" type="date">
             </div>
             <div class="field field-driver">
-              <label for="driverName">乗務員</label>
-              <select id="driverName">
-                <option value="">選択してください</option>
-              </select>
+              <label>乗務員</label>
+              <div id="driverNameDisplay" class="basic-value placeholder">未選択</div>
             </div>
             <div class="field field-vehicle">
-              <label for="vehicleNumber">車両番号</label>
-              <select id="vehicleNumber">
-                <option value="">選択してください</option>
-              </select>
+              <label>車両番号</label>
+              <div id="vehicleNumberDisplay" class="basic-value placeholder">未選択</div>
             </div>
             <div class="field field-mode">
-              <label for="truckType">車種</label>
-              <select id="truckType">
-                <option value="">選択してください</option>
-              </select>
+              <label>車種</label>
+              <div id="truckTypeDisplay" class="basic-value placeholder">未選択</div>
             </div>
           </div>
         </div>
@@ -858,9 +884,9 @@
         exportScreen: document.getElementById("exportScreen"),
         settingsScreen: document.getElementById("settingsScreen"),
         inspectionDate: document.getElementById("inspectionDate"),
-        driverName: document.getElementById("driverName"),
-        vehicleNumber: document.getElementById("vehicleNumber"),
-        truckType: document.getElementById("truckType"),
+        driverNameDisplay: document.getElementById("driverNameDisplay"),
+        vehicleNumberDisplay: document.getElementById("vehicleNumberDisplay"),
+        truckTypeDisplay: document.getElementById("truckTypeDisplay"),
         basicNextBtn: document.getElementById("basicNextBtn"),
         leftTires: document.getElementById("leftTires"),
         rightTires: document.getElementById("rightTires"),
@@ -1123,43 +1149,17 @@
         if (el.applyPreviousBtn) el.applyPreviousBtn.disabled = !previous;
       }
 
-      function renderDriverNameSelect() {
-        const selected = current.driverName || "";
-        el.driverName.innerHTML = "";
-        el.driverName.appendChild(new Option("選択してください", ""));
-        drivers.forEach((driver) => {
-          el.driverName.appendChild(new Option(driver, driver));
-        });
-        if (selected && !drivers.includes(selected)) {
-          el.driverName.appendChild(new Option(selected, selected));
-        }
-        el.driverName.value = selected;
-      }
+      function renderBasicInfoDisplay() {
+        const driverName = String(current.driverName || "").trim();
+        const vehicleNumber = String(current.vehicleNumber || "").trim();
+        const truckType = truckTypes.includes(current.truckType) ? current.truckType : "";
 
-      function renderVehicleNumberSelect() {
-        const selected = current.vehicleNumber || "";
-        el.vehicleNumber.innerHTML = "";
-        el.vehicleNumber.appendChild(new Option("選択してください", ""));
-        vehicles.forEach((vehicle) => {
-          el.vehicleNumber.appendChild(new Option(vehicle, vehicle));
-        });
-        if (selected && !vehicles.includes(selected)) {
-          el.vehicleNumber.appendChild(new Option(selected, selected));
-        }
-        el.vehicleNumber.value = selected;
-      }
-
-      function renderTruckTypeSelect() {
-        const selected = normalizeTruckType(current.truckType);
-        el.truckType.innerHTML = "";
-        el.truckType.appendChild(new Option("選択してください", ""));
-        truckTypes.forEach((truckType) => {
-          el.truckType.appendChild(new Option(truckTypeLabel(truckType), truckType));
-        });
-        if (selected && !truckTypes.includes(selected)) {
-          el.truckType.appendChild(new Option(truckTypeLabel(selected), selected));
-        }
-        el.truckType.value = selected;
+        el.driverNameDisplay.textContent = driverName || "未選択";
+        el.driverNameDisplay.classList.toggle("placeholder", !driverName);
+        el.vehicleNumberDisplay.textContent = vehicleNumber || "未選択";
+        el.vehicleNumberDisplay.classList.toggle("placeholder", !vehicleNumber);
+        el.truckTypeDisplay.textContent = truckType ? truckTypeLabel(truckType) : "未選択";
+        el.truckTypeDisplay.classList.toggle("placeholder", !truckType);
       }
 
       function renderVehicleList() {
@@ -1176,14 +1176,28 @@
           const label = document.createElement("span");
           label.textContent = vehicle;
 
+          const actions = document.createElement("div");
+          actions.className = "vehicle-item-actions";
+
+          const show = document.createElement("button");
+          show.type = "button";
+          show.className = `mini-btn show-btn${current.vehicleNumber === vehicle ? " active" : ""}`;
+          show.textContent = "表示";
+          show.dataset.vehicle = vehicle;
+          show.dataset.action = "show";
+          show.setAttribute("aria-pressed", current.vehicleNumber === vehicle ? "true" : "false");
+
           const remove = document.createElement("button");
           remove.type = "button";
           remove.className = "mini-btn";
           remove.textContent = "削除";
           remove.dataset.vehicle = vehicle;
+          remove.dataset.action = "remove";
 
           row.appendChild(label);
-          row.appendChild(remove);
+          actions.appendChild(show);
+          actions.appendChild(remove);
+          row.appendChild(actions);
           el.vehicleList.appendChild(row);
         });
       }
@@ -1202,14 +1216,28 @@
           const label = document.createElement("span");
           label.textContent = driver;
 
+          const actions = document.createElement("div");
+          actions.className = "vehicle-item-actions";
+
+          const show = document.createElement("button");
+          show.type = "button";
+          show.className = `mini-btn show-btn${current.driverName === driver ? " active" : ""}`;
+          show.textContent = "表示";
+          show.dataset.driver = driver;
+          show.dataset.action = "show";
+          show.setAttribute("aria-pressed", current.driverName === driver ? "true" : "false");
+
           const remove = document.createElement("button");
           remove.type = "button";
           remove.className = "mini-btn";
           remove.textContent = "削除";
           remove.dataset.driver = driver;
+          remove.dataset.action = "remove";
 
           row.appendChild(label);
-          row.appendChild(remove);
+          actions.appendChild(show);
+          actions.appendChild(remove);
+          row.appendChild(actions);
           el.driverList.appendChild(row);
         });
       }
@@ -1244,14 +1272,28 @@
           const label = document.createElement("span");
           label.textContent = truckTypeLabel(truckType);
 
+          const actions = document.createElement("div");
+          actions.className = "vehicle-item-actions";
+
+          const show = document.createElement("button");
+          show.type = "button";
+          show.className = `mini-btn show-btn${current.truckType === truckType ? " active" : ""}`;
+          show.textContent = "表示";
+          show.dataset.truckType = truckType;
+          show.dataset.action = "show";
+          show.setAttribute("aria-pressed", current.truckType === truckType ? "true" : "false");
+
           const remove = document.createElement("button");
           remove.type = "button";
           remove.className = "mini-btn";
           remove.textContent = "削除";
           remove.dataset.truckType = truckType;
+          remove.dataset.action = "remove";
 
           row.appendChild(label);
-          row.appendChild(remove);
+          actions.appendChild(show);
+          actions.appendChild(remove);
+          row.appendChild(actions);
           el.truckTypeList.appendChild(row);
         });
       }
@@ -1268,9 +1310,7 @@
 
       function renderMeta() {
         el.inspectionDate.value = current.inspectionDate;
-        renderDriverNameSelect();
-        renderVehicleNumberSelect();
-        renderTruckTypeSelect();
+        renderBasicInfoDisplay();
       }
 
       function renderAll() {
@@ -1292,6 +1332,7 @@
         if (!current.inspectionDate) return false;
         if (!current.driverName) return false;
         if (!current.vehicleNumber) return false;
+        if (!current.truckType || !truckTypes.includes(current.truckType)) return false;
         return true;
       }
 
@@ -1596,11 +1637,13 @@
         const doToast = options.toast !== false;
         if (doConfirm && !window.confirm("現在の入力内容をリセットします。よろしいですか？")) return false;
         const truckType = current.truckType;
+        const driverName = current.driverName;
+        const vehicleNumber = current.vehicleNumber;
         closeDialog();
         current = defaultCurrent();
-        current.truckType = truckType;
-        if (drivers.length > 0) current.driverName = drivers[0];
-        if (vehicles.length > 0) current.vehicleNumber = vehicles[0];
+        current.truckType = truckTypes.includes(truckType) ? truckType : (truckTypes[0] || TRUCK_TYPES.LOW12);
+        current.driverName = drivers.includes(driverName) ? driverName : "";
+        current.vehicleNumber = vehicles.includes(vehicleNumber) ? vehicleNumber : "";
         saveCurrent();
         buildTires();
         currentScreen = FLOW_SCREENS.BASIC;
@@ -1631,9 +1674,26 @@
         applyTheme(next);
       }
 
+      function setDriverName(name) {
+        const next = String(name || "").trim();
+        if (next && !drivers.includes(next)) return;
+        if (current.driverName === next) return;
+        current.driverName = next;
+        saveCurrent();
+        renderAll();
+      }
+
+      function setVehicleNumber(number) {
+        const next = String(number || "").trim();
+        if (next && !vehicles.includes(next)) return;
+        if (current.vehicleNumber === next) return;
+        current.vehicleNumber = next;
+        saveCurrent();
+        renderAll();
+      }
+
       function setTruckType(type) {
         if (!truckTypes.includes(type)) {
-          renderTruckTypeSelect();
           return;
         }
         const next = normalizeTruckType(type);
@@ -1660,11 +1720,6 @@
         vehicles.sort((a, b) => a.localeCompare(b, "ja"));
         saveVehicles();
 
-        if (!current.vehicleNumber) {
-          current.vehicleNumber = value;
-          saveCurrent();
-        }
-
         el.newVehicleNumber.value = "";
         renderAll();
         showToast("車両番号を登録しました");
@@ -1679,7 +1734,7 @@
         saveVehicles();
 
         if (current.vehicleNumber === value) {
-          current.vehicleNumber = vehicles[0] || "";
+          current.vehicleNumber = "";
           saveCurrent();
         }
 
@@ -1702,11 +1757,6 @@
         drivers.sort((a, b) => a.localeCompare(b, "ja"));
         saveDrivers();
 
-        if (!current.driverName) {
-          current.driverName = value;
-          saveCurrent();
-        }
-
         el.newDriverName.value = "";
         renderAll();
         showToast("乗務員を登録しました");
@@ -1721,7 +1771,7 @@
         saveDrivers();
 
         if (current.driverName === value) {
-          current.driverName = drivers[0] || "";
+          current.driverName = "";
           saveCurrent();
         }
 
@@ -1854,17 +1904,6 @@
           saveCurrent();
           renderAll();
         });
-        el.driverName.addEventListener("change", (ev) => {
-          current.driverName = ev.target.value;
-          saveCurrent();
-          renderAll();
-        });
-        el.vehicleNumber.addEventListener("change", (ev) => {
-          current.vehicleNumber = ev.target.value;
-          saveCurrent();
-          renderAll();
-        });
-        el.truckType.addEventListener("change", (ev) => setTruckType(ev.target.value));
         el.basicNextBtn.addEventListener("click", () => {
           if (!isBasicInfoReady()) {
             showToast("基本情報をすべて設定してください");
@@ -1918,6 +1957,10 @@
           if (!(target instanceof HTMLButtonElement)) return;
           const vehicle = target.dataset.vehicle;
           if (!vehicle) return;
+          if (target.dataset.action === "show") {
+            setVehicleNumber(vehicle);
+            return;
+          }
           removeVehicleNumber(vehicle);
         });
         el.driverList.addEventListener("click", (ev) => {
@@ -1925,6 +1968,10 @@
           if (!(target instanceof HTMLButtonElement)) return;
           const driver = target.dataset.driver;
           if (!driver) return;
+          if (target.dataset.action === "show") {
+            setDriverName(driver);
+            return;
+          }
           removeDriverName(driver);
         });
         el.truckTypeList.addEventListener("click", (ev) => {
@@ -1932,6 +1979,10 @@
           if (!(target instanceof HTMLButtonElement)) return;
           const truckType = target.dataset.truckType;
           if (!truckType) return;
+          if (target.dataset.action === "show") {
+            setTruckType(truckType);
+            return;
+          }
           removeTruckType(truckType);
         });
         el.dialogCloseBtn.addEventListener("click", closeDialog);
@@ -1974,8 +2025,6 @@
         cleanupLegacyExportDirectoryStorage();
         initTheme();
         if (!current.inspectionDate) current.inspectionDate = today();
-        if (!current.driverName && drivers.length > 0) current.driverName = drivers[0];
-        if (!current.vehicleNumber && vehicles.length > 0) current.vehicleNumber = vehicles[0];
         if (!truckTypes.includes(current.truckType)) current.truckType = truckTypes[0] || TRUCK_TYPES.LOW12;
         currentScreen = FLOW_SCREENS.BASIC;
         buildTires();
