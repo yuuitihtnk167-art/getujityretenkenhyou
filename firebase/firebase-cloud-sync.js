@@ -182,7 +182,9 @@
 
   function buildBasicSignature(entry) {
     const basic = extractBasicInfo(entry);
-    const raw = [basic.inspectionDate, basic.driverName, basic.vehicleNumber, basic.truckType].join("|");
+    const inspectionMonth = extractInspectionMonth(entry);
+    // Use month-level identity so day changes update the same document.
+    const raw = [inspectionMonth, basic.driverName, basic.vehicleNumber, basic.truckType].join("|");
     return hashText(raw);
   }
 

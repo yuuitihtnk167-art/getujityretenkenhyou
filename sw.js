@@ -1,11 +1,11 @@
-const CACHE_NAME = "monthly-tire-check-v11";
+const CACHE_NAME = "monthly-tire-check-v12";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./sw.js",
-  "./firebase/firebase-config.js?v=20260221",
-  "./firebase/firebase-cloud-sync.js?v=20260221",
+  "./firebase/firebase-config.js?v=20260222",
+  "./firebase/firebase-cloud-sync.js?v=20260222",
   "./icons/tire-192.png",
   "./icons/tire-512.png"
 ];

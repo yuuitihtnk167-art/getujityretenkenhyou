@@ -774,8 +774,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="./firebase/firebase-config.js?v=20260221"></script>
-  <script src="./firebase/firebase-cloud-sync.js?v=20260221"></script>
+  <script src="./firebase/firebase-config.js?v=20260222"></script>
+  <script src="./firebase/firebase-cloud-sync.js?v=20260222"></script>
   <script>
     (() => {
       "use strict";
@@ -1535,6 +1535,9 @@
         const fileName = `月次タイヤ点検_${driverPart}_${stamp}.csv`;
         const content = "\uFEFF" + csv;
         const previousSnapshot = normalizeCurrent(JSON.parse(JSON.stringify(current)));
+        // Keep a reusable snapshot even when share sheet is canceled.
+        previous = previousSnapshot;
+        savePrevious();
         if (window.FirebaseCloudSync && typeof window.FirebaseCloudSync.saveNow === "function") {
           await window.FirebaseCloudSync.saveNow("submit");
         }
@@ -1542,13 +1545,12 @@
         const shareResult = await shareCsvFile(fileName, content);
         if (!shareResult.ok) {
           if (shareResult.reason === SHARE_REASONS.CANCEL) {
-            showToast("共有がキャンセルされました");
+            renderAll();
+            showToast("共有がキャンセルされました（前回データは保存済み）");
             return;
           }
           downloadCsv(fileName, content);
         }
-        previous = previousSnapshot;
-        savePrevious();
         resetCurrent({ confirm: false, toast: false });
         await closeApp();
       }
